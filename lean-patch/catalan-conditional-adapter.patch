@@ -1,0 +1,478 @@
+From d668c333db302f9f399374e3c824805a1c4d71da Mon Sep 17 00:00:00 2001
+From: Codex <codex@example.local>
+Date: Mon, 22 Jun 2026 09:23:59 +0200
+Subject: [PATCH] Add conditional Catalan Appendix-F adapter
+
+---
+ CATALAN_PATCH_STATUS.md                       |  45 +++++
+ YangMills/KP/RootedCatalan.lean               |  75 +++++++++
+ .../RG/AppendixFHsharpCatalanClosure.lean     |  52 ++++++
+ .../RG/AppendixFHsharpCatalanSource.lean      | 159 ++++++++++++++++++
+ oracle_check_catalan.lean                     |   7 +
+ verification/catalan-build.log                |  66 ++++++++
+ verification/oracle_check_catalan.log         |   7 +
+ 7 files changed, 411 insertions(+)
+ create mode 100644 CATALAN_PATCH_STATUS.md
+ create mode 100644 YangMills/KP/RootedCatalan.lean
+ create mode 100644 YangMills/RG/AppendixFHsharpCatalanClosure.lean
+ create mode 100644 YangMills/RG/AppendixFHsharpCatalanSource.lean
+ create mode 100644 oracle_check_catalan.lean
+ create mode 100644 verification/catalan-build.log
+ create mode 100644 verification/oracle_check_catalan.log
+
+diff --git a/CATALAN_PATCH_STATUS.md b/CATALAN_PATCH_STATUS.md
+new file mode 100644
+index 0000000..6268294
+--- /dev/null
++++ b/CATALAN_PATCH_STATUS.md
+@@ -0,0 +1,45 @@
++# Catalan patch status
++
++Base snapshot: `1d044a353ac2b69ddca732dd851fb0ab4a94d7af`
++
++This branch adds a checked, conditional Catalan adapter:
++
++- `YangMills/KP/RootedCatalan.lean`
++- `YangMills/RG/AppendixFHsharpCatalanClosure.lean`
++- `YangMills/RG/AppendixFHsharpCatalanSource.lean`
++- `oracle_check_catalan.lean`
++
++## Certified here
++
++- The exact Catalan replacement point is named as
++  `YangMills.KP.RootedChildFactorialCatalanIdentity`.
++- The square-root closure theorem
++  `YangMills.RG.catalanClosure_fixedPoint` is proved.
++- The Appendix-F marked-root leaf summation adapter
++  `YangMills.RG.appendixFHoleHsharpWeightedTreeMarkedRootSum_le_catalan_of_expWeight`
++  is proved, conditional on `RootedChildFactorialCatalanIdentity n`.
++- `oracle_check_catalan.lean` reports only
++  `[propext, Classical.choice, Quot.sound]` for the new checked theorems.
++
++## Not certified here
++
++The general bijection proving
++
++```lean
++YangMills.KP.RootedChildFactorialCatalanIdentity n
++```
++
++for every `n` is not yet proved.  In particular, this branch is not a closed
++formal proof of the exact rooted child-factorial Catalan identity.  It is a
++verified downstream adapter plus a precise formal statement of the remaining
++combinatorial obligation.
++
++## Commands run
++
++```sh
++lake exe cache get
++lake build YangMillsCore
++lake build YangMills.KP.RootedCatalan YangMills.RG.AppendixFHsharpCatalanClosure
++lake build YangMills.RG.AppendixFHsharpCatalanSource
++lake env lean oracle_check_catalan.lean
++```
+diff --git a/YangMills/KP/RootedCatalan.lean b/YangMills/KP/RootedCatalan.lean
+new file mode 100644
+index 0000000..5b0aa29
+--- /dev/null
++++ b/YangMills/KP/RootedCatalan.lean
+@@ -0,0 +1,75 @@
++/- Copyright (c) 2026 Lluis Eriksson. All rights reserved.
++Released under the GNU Affero General Public License v3.0
++as described in the file LICENSE.
++Authors: Lluis Eriksson -/
++
++import YangMills.KP.RootedLeafSummation
++import Mathlib.Combinatorics.Enumerative.Catalan
++
++/-!
++# Rooted child-factorial Catalan interface
++
++This module names the exact Catalan replacement point for the existing
++`4^n` rooted child-factorial tree summation.
++
++Important status note: the general bijection between complete-graph spanning
++trees with ordered rooted child fibers and Catalan-counted binary/rooted
++ordered trees is not proved here.  The theorem below is therefore an
++interface lemma: downstream Appendix-F code can consume the exact Catalan
++identity as an explicit hypothesis without introducing any axiom or `sorry`.
++
++Oracle target for the lemmas in this file:
++`[propext, Classical.choice, Quot.sound]`.
++-/
++
++namespace YangMills.KP
++
++open SimpleGraph
++open scoped BigOperators
++
++/-- The unnormalized rooted child-factorial sum over complete-graph spanning
++trees on `Fin (n+1)`. -/
++noncomputable def rootedChildFactorialTreeSum (n : ℕ) : ℝ :=
++  ∑ T ∈ spanningTrees (⊤ : SimpleGraph (Fin (n + 1))),
++    ∏ v : Fin (n + 1), ((rootedChildCount T v).factorial : ℝ)
++
++/-- The exact second-Ursell normalization applied to
++`rootedChildFactorialTreeSum`. -/
++noncomputable def rootedChildFactorialTreeSumNormalized (n : ℕ) : ℝ :=
++  ((n : ℝ) + 1) * (((n + 1).factorial : ℝ))⁻¹ *
++    rootedChildFactorialTreeSum n
++
++/-- Statement of the missing exact Catalan identity.  Keeping it as a named
++proposition makes downstream theorem statements honest: they can assume this
++fact explicitly until the bijection proof is supplied. -/
++def RootedChildFactorialCatalanIdentity (n : ℕ) : Prop :=
++  rootedChildFactorialTreeSumNormalized n = (catalan n : ℝ)
++
++/-- Inequality consumer form of the exact Catalan identity. -/
++theorem rootedChildCount_factorialTreeSum_normalized_le_catalan_of_identity
++    (n : ℕ) (hcat : RootedChildFactorialCatalanIdentity n) :
++    rootedChildFactorialTreeSumNormalized n ≤ (catalan n : ℝ) := by
++  simpa [RootedChildFactorialCatalanIdentity] using le_of_eq hcat
++
++/-- Expansion of the named normalized sum back into the shape consumed by the
++existing second-Ursell leaf summation code. -/
++theorem rootedChildFactorialTreeSumNormalized_eq_raw (n : ℕ) :
++    rootedChildFactorialTreeSumNormalized n =
++      ((n : ℝ) + 1) * (((n + 1).factorial : ℝ))⁻¹ *
++        (∑ T ∈ spanningTrees (⊤ : SimpleGraph (Fin (n + 1))),
++          ∏ v : Fin (n + 1), ((rootedChildCount T v).factorial : ℝ)) := by
++  rfl
++
++/-- Raw-form Catalan inequality, still explicitly conditional on the exact
++combinatorial identity. -/
++theorem rootedChildCount_factorialTreeSum_normalized_le_catalan_of_identity_raw
++    (n : ℕ) (hcat : RootedChildFactorialCatalanIdentity n) :
++    ((n : ℝ) + 1) * (((n + 1).factorial : ℝ))⁻¹ *
++        (∑ T ∈ spanningTrees (⊤ : SimpleGraph (Fin (n + 1))),
++          ∏ v : Fin (n + 1), ((rootedChildCount T v).factorial : ℝ))
++      ≤ (catalan n : ℝ) := by
++  simpa [rootedChildFactorialTreeSumNormalized,
++    rootedChildFactorialTreeSum] using
++      rootedChildCount_factorialTreeSum_normalized_le_catalan_of_identity n hcat
++
++end YangMills.KP
+diff --git a/YangMills/RG/AppendixFHsharpCatalanClosure.lean b/YangMills/RG/AppendixFHsharpCatalanClosure.lean
+new file mode 100644
+index 0000000..1e50682
+--- /dev/null
++++ b/YangMills/RG/AppendixFHsharpCatalanClosure.lean
+@@ -0,0 +1,52 @@
++/- Copyright (c) 2026 Lluis Eriksson. All rights reserved.
++Released under the GNU Affero General Public License v3.0
++as described in the file LICENSE.
++Authors: Lluis Eriksson -/
++
++import Mathlib.Analysis.SpecialFunctions.Pow.Real
++
++/-!
++# Square-root Catalan closure
++
++This file contains the real-valued square-root closure used by the Catalan
++majorant.  It is independent of the polymer and rooted-tree APIs.
++
++Oracle target: `[propext, Classical.choice, Quot.sound]`.
++-/
++
++namespace YangMills.RG
++
++noncomputable def catalanClosure (M ε : ℝ) : ℝ :=
++  (1 - Real.sqrt (1 - 4 * M ^ 2 * ε)) / (2 * M)
++
++noncomputable def geometricClosure (M ε : ℝ) : ℝ :=
++  M * ε / (1 - 4 * M ^ 2 * ε)
++
++theorem catalanClosure_fixedPoint
++    {M ε : ℝ} (hM : 0 < M) (hε : 0 ≤ ε)
++    (hsmall : 4 * M ^ 2 * ε ≤ 1) :
++    catalanClosure M ε =
++      M * ε + M * (catalanClosure M ε) ^ 2 := by
++  have hrad : 0 ≤ 1 - 4 * M ^ 2 * ε := by nlinarith
++  have _ : 0 ≤ ε := hε
++  have hsqrt_sq : Real.sqrt (1 - 4 * M ^ 2 * ε) ^ 2 =
++      1 - 4 * M ^ 2 * ε := by
++    exact Real.sq_sqrt hrad
++  unfold catalanClosure
++  field_simp [ne_of_gt hM, (show (2 : ℝ) * M ≠ 0 by positivity)]
++  nlinarith
++
++theorem catalanClosure_nonneg
++    {M ε : ℝ} (hM : 0 < M) (hε : 0 ≤ ε)
++    (hsmall : 4 * M ^ 2 * ε ≤ 1) :
++    0 ≤ catalanClosure M ε := by
++  have hrad : 0 ≤ 1 - 4 * M ^ 2 * ε := by nlinarith
++  have hrad_le_one : 1 - 4 * M ^ 2 * ε ≤ 1 := by
++    have hprod : 0 ≤ 4 * M ^ 2 * ε := by positivity
++    linarith
++  have hsqrt_le_one : Real.sqrt (1 - 4 * M ^ 2 * ε) ≤ 1 := by
++    simpa [Real.sqrt_one] using Real.sqrt_le_sqrt hrad_le_one
++  unfold catalanClosure
++  exact div_nonneg (by nlinarith) (by positivity)
++
++end YangMills.RG
+diff --git a/YangMills/RG/AppendixFHsharpCatalanSource.lean b/YangMills/RG/AppendixFHsharpCatalanSource.lean
+new file mode 100644
+index 0000000..7aaa9c5
+--- /dev/null
++++ b/YangMills/RG/AppendixFHsharpCatalanSource.lean
+@@ -0,0 +1,159 @@
++/- Copyright (c) 2026 Lluis Eriksson. All rights reserved.
++Released under the GNU Affero General Public License v3.0
++as described in the file LICENSE.
++Authors: Lluis Eriksson -/
++
++import YangMills.KP.RootedCatalan
++import YangMills.RG.AppendixFSecondUrsellLeafSummation
++import YangMills.RG.AppendixFHsharpCatalanClosure
++
++/-!
++# Conditional Catalan source adapter for Appendix-F second Ursell bounds
++
++This module proves the downstream Appendix-F marked-root leaf bound assuming
++the exact rooted child-factorial Catalan identity from
++`YangMills.KP.RootedCatalan`.
++
++The identity is an explicit hypothesis, not an axiom.  Consequently theorems
++in this file have clean oracle reports, but they do not by themselves close
++the missing combinatorial bijection.
++
++Oracle target: `[propext, Classical.choice, Quot.sound]`.
++-/
++
++namespace YangMills.RG
++
++open scoped BigOperators
++
++/-- Marked-root second-Ursell leaf summation with the exact Catalan tree-shape
++factor, conditional on the exact rooted child-factorial Catalan identity for
++this order `n`. -/
++theorem appendixFHoleHsharpWeightedTreeMarkedRootSum_le_catalan_of_expWeight
++    {d L : ℕ} [NeZero L]
++    (HF : HoleFamily d L)
++    (zK : Finset (Cube d L) → ℂ)
++    (w : OmegaPolymerType HF zK → ℝ)
++    (r : Cube d L)
++    (n : ℕ)
++    (κ₀ : ℝ)
++    (hκ₀ : 0 < κ₀)
++    (hw : ∀ Q : OmegaPolymerType HF zK, 0 ≤ w Q)
++    (hw_exp :
++      ∀ Q : OmegaPolymerType HF zK,
++        w Q ≤ appendixFHoleExpWeight HF (2 * κ₀) Q.val)
++    (hdisj :
++      ∀ H₁ ∈ HF.holes, ∀ H₂ ∈ HF.holes,
++        H₁ ≠ H₂ → Disjoint H₁ H₂)
++    (hnoedges :
++      noEdgesBetweenHoles (cubeAdj d L) HF.holes)
++    (hholes_ne : ∀ H₀ ∈ HF.holes, H₀.Nonempty)
++    (hCq :
++      ((3 ^ d : ℕ) : ℝ) ^ 2 *
++          (Real.exp (-κ₀) * 2 ^ (3 ^ d + 1)) < 1)
++    (hcat : YangMills.KP.RootedChildFactorialCatalanIdentity n) :
++    ((n : ℝ) + 1) *
++        appendixFHoleHsharpWeightedTreeMarkedRootSum
++          HF zK w r n
++      ≤
++    (catalan n : ℝ) *
++      appendixFSecondUrsellMomentConstant d κ₀ ^ (2 * n + 1) := by
++  classical
++  let topTrees : Finset (Finset (Sym2 (Fin (n + 1)))) :=
++    YangMills.KP.spanningTrees (⊤ : SimpleGraph (Fin (n + 1)))
++  let M : ℝ := appendixFSecondUrsellMomentConstant d κ₀
++  let norm : ℝ := ((n : ℝ) + 1) * (((n + 1).factorial : ℝ))⁻¹
++  let S : ℝ :=
++    ∑ T ∈ topTrees,
++      ∏ v : Fin (n + 1), ((YangMills.KP.rootedChildCount T v).factorial : ℝ)
++  have hM_nonneg : 0 ≤ M := by
++    simpa [M] using appendixFSecondUrsellMomentConstant_nonneg d κ₀
++  have hnorm_nonneg : 0 ≤ norm := by
++    dsimp [norm]
++    positivity
++  have hraw_kernel :
++      appendixFHoleHsharpWeightedTreeMarkedRootRawSum HF zK w r n
++        ≤
++      appendixFHoleHsharpWeightedTreeMarkedRootCompleteParentKernelSum
++        HF zK w κ₀ r n := by
++    exact
++      (appendixFHoleHsharpWeightedTreeMarkedRootRawSum_le_completeTreeParentSum
++        HF zK w r n hw).trans
++        (appendixFHoleHsharpWeightedTreeMarkedRootCompleteParentSum_le_kernelSum
++          HF zK w κ₀ r n hw hw_exp)
++  have hkernel :
++      appendixFHoleHsharpWeightedTreeMarkedRootCompleteParentKernelSum
++          HF zK w κ₀ r n
++        ≤
++      ∑ T ∈ topTrees,
++        (∏ v : Fin (n + 1),
++          ((YangMills.KP.rootedChildCount T v).factorial : ℝ)) *
++          M ^ (2 * n + 1) := by
++    calc
++      appendixFHoleHsharpWeightedTreeMarkedRootCompleteParentKernelSum
++          HF zK w κ₀ r n
++          =
++        ∑ T ∈ topTrees,
++          appendixFHoleHsharpWeightedTreeMarkedRootFixedParentKernelSum
++            HF zK w κ₀ r n T := by
++            simpa [topTrees] using
++              appendixFHoleHsharpWeightedTreeMarkedRootCompleteParentKernelSum_eq_sum_fixed
++                HF zK w κ₀ r n
++      _ ≤
++        ∑ T ∈ topTrees,
++          (∏ v : Fin (n + 1),
++            ((YangMills.KP.rootedChildCount T v).factorial : ℝ)) *
++            M ^ (2 * n + 1) := by
++            refine Finset.sum_le_sum ?_
++            intro T hT
++            simpa [M] using
++              appendixFHoleHsharpWeightedTreeMarkedRootFixedParentKernelSum_le_childFactor_mul_momentPow
++                HF zK w κ₀ r n T hT hw hw_exp hκ₀ hdisj hnoedges
++                hholes_ne hCq
++  have htree_sum : norm * S ≤ (catalan n : ℝ) := by
++    simpa [norm, S, topTrees,
++      YangMills.KP.rootedChildFactorialTreeSum,
++      YangMills.KP.rootedChildFactorialTreeSumNormalized] using
++      YangMills.KP.rootedChildCount_factorialTreeSum_normalized_le_catalan_of_identity_raw
++        n hcat
++  have hsum_const :
++      (∑ T ∈ topTrees,
++        (∏ v : Fin (n + 1),
++          ((YangMills.KP.rootedChildCount T v).factorial : ℝ)) *
++          M ^ (2 * n + 1))
++        = S * M ^ (2 * n + 1) := by
++    dsimp [S]
++    rw [Finset.sum_mul]
++  calc
++    ((n : ℝ) + 1) *
++        appendixFHoleHsharpWeightedTreeMarkedRootSum
++          HF zK w r n
++        =
++      norm * appendixFHoleHsharpWeightedTreeMarkedRootRawSum HF zK w r n := by
++        rw [appendixFHoleHsharpWeightedTreeMarkedRootSum_eq_inv_factorial_mul_rawSum]
++        simp [norm]
++        ring
++    _ ≤
++      norm *
++        appendixFHoleHsharpWeightedTreeMarkedRootCompleteParentKernelSum
++          HF zK w κ₀ r n := by
++        exact mul_le_mul_of_nonneg_left hraw_kernel hnorm_nonneg
++    _ ≤
++      norm *
++        (∑ T ∈ topTrees,
++          (∏ v : Fin (n + 1),
++            ((YangMills.KP.rootedChildCount T v).factorial : ℝ)) *
++            M ^ (2 * n + 1)) := by
++        exact mul_le_mul_of_nonneg_left hkernel hnorm_nonneg
++    _ =
++      M ^ (2 * n + 1) * (norm * S) := by
++        rw [hsum_const]
++        ring
++    _ ≤ M ^ (2 * n + 1) * (catalan n : ℝ) := by
++        exact mul_le_mul_of_nonneg_left htree_sum (pow_nonneg hM_nonneg _)
++    _ =
++      (catalan n : ℝ) *
++        appendixFSecondUrsellMomentConstant d κ₀ ^ (2 * n + 1) := by
++        simp [M]
++        ring
++
++end YangMills.RG
+diff --git a/oracle_check_catalan.lean b/oracle_check_catalan.lean
+new file mode 100644
+index 0000000..c88f10a
+--- /dev/null
++++ b/oracle_check_catalan.lean
+@@ -0,0 +1,7 @@
++import YangMills.KP.RootedCatalan
++import YangMills.RG.AppendixFHsharpCatalanClosure
++import YangMills.RG.AppendixFHsharpCatalanSource
++
++#print axioms YangMills.KP.rootedChildCount_factorialTreeSum_normalized_le_catalan_of_identity
++#print axioms YangMills.RG.catalanClosure_fixedPoint
++#print axioms YangMills.RG.appendixFHoleHsharpWeightedTreeMarkedRootSum_le_catalan_of_expWeight
+diff --git a/verification/catalan-build.log b/verification/catalan-build.log
+new file mode 100644
+index 0000000..b224146
+--- /dev/null
++++ b/verification/catalan-build.log
+@@ -0,0 +1,66 @@
++⚠ [8168/8235] Replayed YangMills.KP.PinnedWalk
++warning: YangMills/KP/PinnedWalk.lean:107:51: This simp argument is unused:
++  zero_mul
++
++Hint: Omit it from the simp argument list.
++  simp only [Option.elim_none, Option.elim_some, zero_m̵u̵l̵,̵ ̵z̵e̵r̵o̵_̵add] at key
++
++Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
++warning: YangMills/KP/PinnedWalk.lean:107:61: This simp argument is unused:
++  zero_add
++
++Hint: Omit it from the simp argument list.
++  simp only [Option.elim_none, Option.elim_some, zero_mul,̵ ̵z̵e̵r̵o̵_̵a̵d̵d̵] at key
++
++Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
++⚠ [8188/8235] Replayed YangMills.L1_GibbsMeasure.CenterInvariance
++warning: YangMills/L1_GibbsMeasure/CenterInvariance.lean:57:0: automatically included section variable(s) unused in theorem `YangMills.centerAct_apply_pos`:
++  [MeasurableSpace G]
++consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
++  omit [MeasurableSpace G] in theorem ...
++
++Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
++warning: YangMills/L1_GibbsMeasure/CenterInvariance.lean:108:0: automatically included section variable(s) unused in theorem `YangMills.wilsonLine_center_smul_of_mem`:
++  [MeasurableSpace G]
++consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
++  omit [MeasurableSpace G] in theorem ...
++
++Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
++⚠ [8189/8235] Replayed YangMills.L1_GibbsMeasure.PolymerExpansion
++warning: YangMills/L1_GibbsMeasure/PolymerExpansion.lean:138:0: automatically included section variable(s) unused in theorem `YangMills.config_apply_neg`:
++  [MeasurableSpace G]
++consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
++  omit [MeasurableSpace G] in theorem ...
++
++Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
++warning: YangMills/L1_GibbsMeasure/PolymerExpansion.lean:405:10: This simp argument is unused:
++  measure_univ
++
++Hint: Omit it from the simp argument list.
++  simp ̵[̵m̵e̵a̵s̵u̵r̵e̵_̵u̵n̵i̵v̵]̵
++
++Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
++⚠ [8200/8235] Replayed YangMills.KP.SharpShell
++warning: YangMills/KP/SharpShell.lean:404:23: `Fin.coe_castSucc` has been deprecated: Use `Fin.val_castSucc` instead
++warning: YangMills/KP/SharpShell.lean:491:4: Try this: intro pl _ hadm
++⚠ [8206/8235] Replayed YangMills.KP.Restriction
++warning: YangMills/KP/Restriction.lean:33:14: unused variable `X`
++
++Note: This linter can be disabled with `set_option linter.unusedVariables false`
++warning: YangMills/KP/Restriction.lean:33:16: unused variable `Y`
++
++Note: This linter can be disabled with `set_option linter.unusedVariables false`
++warning: YangMills/KP/Restriction.lean:34:14: unused variable `X`
++
++Note: This linter can be disabled with `set_option linter.unusedVariables false`
++⚠ [8216/8235] Replayed YangMills.Paper.ClusteringToGap
++warning: YangMills/Paper/ClusteringToGap.lean:204:9: unused variable `d`
++
++Note: This linter can be disabled with `set_option linter.unusedVariables false`
++warning: YangMills/Paper/ClusteringToGap.lean:214:9: unused variable `d`
++
++Note: This linter can be disabled with `set_option linter.unusedVariables false`
++warning: YangMills/Paper/ClusteringToGap.lean:219:19: unused variable `d`
++
++Note: This linter can be disabled with `set_option linter.unusedVariables false`
++Build completed successfully (8235 jobs).
+diff --git a/verification/oracle_check_catalan.log b/verification/oracle_check_catalan.log
+new file mode 100644
+index 0000000..225e4d6
+--- /dev/null
++++ b/verification/oracle_check_catalan.log
+@@ -0,0 +1,7 @@
++'YangMills.KP.rootedChildCount_factorialTreeSum_normalized_le_catalan_of_identity' depends on axioms: [propext,
++ Classical.choice,
++ Quot.sound]
++'YangMills.RG.catalanClosure_fixedPoint' depends on axioms: [propext, Classical.choice, Quot.sound]
++'YangMills.RG.appendixFHoleHsharpWeightedTreeMarkedRootSum_le_catalan_of_expWeight' depends on axioms: [propext,
++ Classical.choice,
++ Quot.sound]
+-- 
+2.43.0.windows.1
+

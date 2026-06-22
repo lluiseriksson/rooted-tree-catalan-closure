@@ -1,0 +1,7 @@
+import YangMills.KP.RootedCatalan
+import YangMills.RG.AppendixFHsharpCatalanClosure
+import YangMills.RG.AppendixFHsharpCatalanSource
+
+#print axioms YangMills.KP.rootedChildCount_factorialTreeSum_normalized_le_catalan_of_identity
+#print axioms YangMills.RG.catalanClosure_fixedPoint
+#print axioms YangMills.RG.appendixFHoleHsharpWeightedTreeMarkedRootSum_le_catalan_of_expWeight
