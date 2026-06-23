@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import subprocess
 import uuid
 import zipfile
@@ -85,6 +84,11 @@ def zip_info(name: str, timestamp: tuple[int, int, int, int, int, int], executab
     return info
 
 
+def portable_executable_mode(path: str) -> bool:
+    """Return the normalized executable bit used inside the source ZIP."""
+    return path.endswith((".py", ".sh"))
+
+
 def spdx_id(path: str) -> str:
     return "SPDXRef-File-" + "".join(char if char.isalnum() or char in ".-" else "-" for char in path)
 
@@ -146,7 +150,7 @@ def main() -> int:
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_STORED, allowZip64=False) as archive:
         for path, record in zip(files, records, strict=True):
             rel = str(record["path"])
-            executable = os.access(path, os.X_OK) or rel.endswith((".sh", ".py"))
+            executable = portable_executable_mode(rel)
             archive.writestr(zip_info(f"{prefix}/{rel}", timestamp, executable), path.read_bytes())
         archive.writestr(zip_info(f"{prefix}/SOURCE-MANIFEST.sha256", timestamp), manifest)
 

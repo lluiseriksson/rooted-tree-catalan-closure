@@ -30,7 +30,7 @@
     "scripts/check_finite_catalan.py": "1a11bb9149ae16ea72cf2b58b84e6f3a0afc4440",
     "scripts/check_repository.py": "806c53ae3c2c4191bd5a941062024c34e0a5d352",
     "scripts/create_history_bundle.py": "0c5dcb77a0c02abc5e9cd931f521f8ad48067a8f",
-    "scripts/package_release.py": "4bf03f5179afb235cac3a564bf983775898fefb3",
+    "scripts/package_release.py": "c97d2599c34996cfd6c482da0b1782fbe7a9598d",
     "scripts/verify_history_bundle.py": "86a1f9894376d229bd784a3c42fae79f614baad3",
     "scripts/verify_release.py": "070c20b22523f6b730a2d955bc3d20ff7a024b84",
     "scripts/verify_replay_logs.py": "cb396b67a292af36e6b2fbfaad427f4b9972bfb5"

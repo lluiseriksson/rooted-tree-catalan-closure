@@ -11,7 +11,13 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from check_repository import git_blob_sha, parse_oracle_axioms, strip_lean_comments_and_strings
-from package_release import ARCHIVED_EVIDENCE_LOGS, file_license, repository_files, zip_info
+from package_release import (
+    ARCHIVED_EVIDENCE_LOGS,
+    file_license,
+    portable_executable_mode,
+    repository_files,
+    zip_info,
+)
 
 
 class ArtifactToolTests(unittest.TestCase):
@@ -45,6 +51,12 @@ class ArtifactToolTests(unittest.TestCase):
         self.assertEqual(info.create_system, 3)
         self.assertEqual(stat.S_IMODE(info.external_attr >> 16), 0o755)
         self.assertEqual(info.date_time, (2026, 6, 23, 0, 0, 0))
+
+    def test_portable_executable_mode_ignores_host_permissions(self) -> None:
+        self.assertTrue(portable_executable_mode("scripts/check_repository.py"))
+        self.assertTrue(portable_executable_mode("scripts/bootstrap_upstream_patch.sh"))
+        self.assertFalse(portable_executable_mode("README.md"))
+        self.assertFalse(portable_executable_mode(".github/workflows/artifact-ci.yml"))
 
     def test_makefile_pins_manuscript_source(self) -> None:
         makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
