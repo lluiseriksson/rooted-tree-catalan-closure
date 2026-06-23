@@ -4,6 +4,7 @@
 [![Manual Lean replay](https://github.com/lluiseriksson/rooted-tree-catalan-closure/actions/workflows/full-lean-replay.yml/badge.svg)](https://github.com/lluiseriksson/rooted-tree-catalan-closure/actions/workflows/full-lean-replay.yml)
 [![Lean](https://img.shields.io/badge/Lean-4.29.0--rc6-blue)](project.json)
 [![Formal status](https://img.shields.io/badge/formal%20status-conditional%20adapter-orange)](lean-patch/CATALAN_PATCH_STATUS.md)
+[![Finite evidence](https://img.shields.io/badge/exact%20finite%20checks-n%20%E2%89%A4%208-success)](evidence/finite-catalan-checks.json)
 
 This repository is the recovered publication artifact for **Rooted-tree summation and
 Catalan closure for polymer cluster expansions with holes**. It contains the canonical
@@ -20,8 +21,10 @@ Repository recovery and theorem completeness are separate questions:
 | Conditional Lean adapter | Checked in the archived pinned environment |
 | Square-root Catalan closure | Checked in Lean |
 | Appendix-F marked-root adapter | Checked, conditional on the Catalan identity |
+| Exact finite tree identity, `0 ≤ n ≤ 8` | Recomputed by three integer-only methods |
 | General Lean proof of `RootedChildFactorialCatalanIdentity n` | **Still open in this artifact** |
 | Static integrity, patch applicability, packaging, and release verification | Automated |
+| Full Git history and refs | Recoverable through a verified Git bundle |
 
 The exact remaining proposition is:
 
@@ -30,8 +33,32 @@ YangMills.KP.RootedChildFactorialCatalanIdentity n
 ```
 
 The downstream theorem takes that proposition as an explicit hypothesis; it is not
-introduced as an axiom. The repository therefore does not claim a closed Lean proof of
-the general rooted child-factorial Catalan identity.
+introduced as an axiom. Finite computation is useful regression evidence, but it does
+not turn the conditional adapter into a general Lean proof.
+
+## New independent finite evidence
+
+`scripts/check_finite_catalan.py` verifies the exact integer identity
+
+```text
+Σ_T ∏_v c_T(v)! = n! · Catalan(n)
+```
+
+by three routes:
+
+1. exhaustive Prüfer words through `n = 8`;
+2. exhaustive complete-graph edge subsets that are trees through `n = 7`; and
+3. exhaustive Prüfer occurrence profiles through `n = 8`.
+
+Run it with:
+
+```sh
+make finite-check
+```
+
+The deterministic result table is in [evidence/finite-catalan-checks.json](evidence/finite-catalan-checks.json).
+The resulting Prüfer-profile reduction and a narrow Lean closure plan are documented in
+[docs/PRUFER_PROFILE_REDUCTION.md](docs/PRUFER_PROFILE_REDUCTION.md).
 
 ## Immutable provenance
 
@@ -43,58 +70,85 @@ the general rooted child-factorial Catalan identity.
 | Lean | `leanprover/lean4:v4.29.0-rc6` |
 | Mathlib | `07642720480157414db592fa85b626dafb71355b` |
 
-`project.json` is the machine-readable source of truth. Its `critical_git_blobs` table
-protects the manuscript, PDF, Lean modules, patch, and verification logs from silent
-replacement or line-ending damage.
+[project.json](project.json) is the machine-readable source of truth. Its
+`critical_git_blobs` table protects the manuscript, PDF, Lean modules, patch, evidence,
+and theorem manifest from silent replacement or line-ending damage. The declaration
+status is mirrored in [archive/theorem-manifest.json](archive/theorem-manifest.json).
 
 ## Verify locally
 
-Static integrity audit:
+The non-TeX CI gate is:
 
 ```sh
-make static
+make ci
+make package-determinism
+make verify-release
 ```
 
-Rebuild the paper and recheck its structure:
+A concise equivalent is:
 
 ```sh
 make verify
 ```
 
-Create and independently verify a deterministic source ZIP, SHA-256 checksum, SPDX 2.3
-SBOM, and release metadata:
+With a TeX distribution installed, rebuild and inspect the manuscript without changing
+the tracked recovered PDF:
 
 ```sh
-make package-determinism
-make verify-release
+make paper-check
 ```
 
-A complete local publication gate is:
+`make paper` writes `build/Rooted_tree_Catalan_closure.pdf`. Replacing the tracked PDF
+requires the explicit `make paper-refresh` target.
+
+Create a deterministic source ZIP, SHA-256 checksum, SPDX 2.3 SBOM, and release metadata:
 
 ```sh
-make release
+make package
 ```
+
+The source ZIP uses uncompressed, normalized entries (`ZIP_STORED`) so its bytes do not
+depend on a particular zlib version.
+
+Preserve and verify the complete commit graph and refs separately:
+
+```sh
+make history-bundle
+make verify-history
+```
+
+`make recovery` builds and verifies both recovery layers. The Git bundle is checksummed
+and checked with `git bundle verify`; unlike the source ZIP, it is not claimed to be
+byte-identical across Git versions. See
+[docs/DISASTER_RECOVERY.md](docs/DISASTER_RECOVERY.md).
+
+## CI portability
+
+The pure-Python recovery tooling is exercised on Python 3.11, 3.12, and 3.13.
+The Makefile uses immediate assignments for `TEX := main.tex` and the tracked PDF name,
+preventing runner environment variables from selecting a different manuscript source.
+See [docs/CI_PORTABILITY.md](docs/CI_PORTABILITY.md).
 
 ## Lean replay
 
-The ordinary CI checks that the mailbox patch applies exactly to the immutable upstream
-base and that the recovered source copies match the applied result. The full Lean kernel
-replay is a manually dispatched workflow because it rebuilds the large pinned upstream
-project.
+Ordinary CI checks that the mailbox patch applies exactly to the immutable upstream base
+and that recovered source copies match the applied result. The full Lean kernel replay
+is manually dispatched because it rebuilds the large pinned upstream project. It now
+verifies upstream pins and emits a machine-readable replay report.
 
-Equivalent local commands:
+Local patch application only:
 
 ```sh
-git clone https://github.com/lluiseriksson/THE-ERIKSSON-PROGRAMME.git upstream
-cd upstream
-git checkout 1d044a353ac2b69ddca732dd851fb0ab4a94d7af
-git apply ../rooted-tree-catalan-closure/lean-patch/catalan-conditional-adapter.patch
-lake exe cache get
-lake build YangMillsCore
-lake build YangMills.KP.RootedCatalan YangMills.RG.AppendixFHsharpCatalanClosure
-lake build YangMills.RG.AppendixFHsharpCatalanSource
-lake env lean oracle_check_catalan.lean
+make upstream-replay
 ```
+
+Full local replay:
+
+```sh
+bash scripts/bootstrap_upstream_patch.sh --clean --build
+```
+
+A PowerShell equivalent is available as `scripts/bootstrap_upstream_patch.ps1`.
 
 The archived evidence records a successful 8,235-job build and exactly
 `[propext, Classical.choice, Quot.sound]` for the checked adapter endpoints.
@@ -104,11 +158,15 @@ The archived evidence records a successful 8,235-job build and exactly
 - `main.tex` — canonical manuscript source.
 - `Rooted_tree_Catalan_closure.pdf` — recovered compiled manuscript.
 - `lean-patch/` — conditional Lean adapter, mailbox patch, oracle driver, and evidence.
-- `project.json` — version, pins, formal status, and critical Git blobs.
+- `archive/theorem-manifest.json` — machine-readable theorem status and evidence map.
+- `evidence/` — deterministic exact finite checks and their scope statement.
+- `project.json` — version, pins, formal status, critical blobs, and release policy.
 - `scripts/check_repository.py` — local integrity and claim-boundary audit.
 - `scripts/package_release.py` — deterministic package, checksum, SBOM, and metadata.
-- `scripts/verify_release.py` — independent verification of generated release files.
-- `docs/` — claims boundary, provenance, recovery, reproducibility, and release process.
+- `scripts/verify_release.py` — independent release/source parity verification.
+- `scripts/create_history_bundle.py` — complete Git history/ref recovery bundle.
+- `schema/project.schema.json` — machine-readable metadata contract.
+- `docs/` — claims boundary, provenance, recovery, reproducibility, and proof roadmap.
 
 ## Scope
 

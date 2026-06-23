@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.4.1 - 2026-06-23
+
+- Rebased the upgrade guard onto `e50d83f5f2ebd2cce8d470f39dbeba5fa20f4ff6`, preserving the successful CI source-pin fix.
+- Hard-pinned `TEX := main.tex` and the tracked PDF name, with audit and unit-test regression guards.
+- Added a Python 3.11/3.12/3.13 tooling matrix and portability documentation.
+- Added exact finite Catalan checks by Prüfer words, direct complete-graph tree
+  enumeration, and Prüfer occurrence profiles.
+- Added deterministic finite evidence through `n = 8` and a machine-readable theorem
+  manifest.
+- Documented the Prüfer-profile cancellation that narrows the remaining Lean proof.
+- Added pinned upstream bootstrap scripts for POSIX shells and PowerShell.
+- Added machine-readable full Lean replay reports and stricter replay pin validation.
+- Stopped ordinary paper builds from overwriting the tracked recovered PDF.
+- Switched release ZIPs to `ZIP_STORED` for cross-runtime byte determinism and added
+  release/source parity verification plus file-level SPDX license records.
+- Hardened CI, release attestation guards, local link checks, JSON/Python validation, and
+  release metadata cross-checks.
+- Added a verified full-history Git bundle, ref inventory, disaster-recovery guide,
+  metadata schema, CI backup workflow, and integration test covering restoration.
+
 ## 1.3.0 - 2026-06-23
 
 - Added immutable Git-blob verification for the recovered primary materials.

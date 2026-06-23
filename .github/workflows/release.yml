@@ -7,11 +7,17 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: tagged-release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
@@ -20,11 +26,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install TeX
+      - name: Install TeX and PDF inspection tools
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            texlive-latex-base texlive-latex-extra texlive-fonts-recommended texlive-science lmodern
+            texlive-latex-base texlive-latex-extra texlive-fonts-recommended \
+            texlive-science lmodern poppler-utils
       - name: Verify tag matches project version
         if: startsWith(github.ref, 'refs/tags/')
         run: |
@@ -37,13 +44,35 @@ jobs:
           PY
       - name: Complete publication gate
         run: make release
+      - name: Create and verify full-history recovery bundle
+        run: |
+          make history-bundle
+          python scripts/verify_history_bundle.py --release-dir history-release
+      - name: Attest source archive
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: release/*.zip
+      - name: Attest SPDX SBOM
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: release/*.spdx.json
+      - name: Attest history bundle
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: history-release/*.bundle
       - name: Publish GitHub release
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" release/* --verify-tag --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" release/* history-release/* --verify-tag --generate-notes
       - uses: actions/upload-artifact@v4
         with:
           name: tagged-release-files
-          path: release/*
+          path: |
+            release/*
+            history-release/*
           if-no-files-found: error
+          retention-days: 90

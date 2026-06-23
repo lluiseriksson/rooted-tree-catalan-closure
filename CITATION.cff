@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this recovered artifact, cite the repository and the paper."
 title: "Rooted-tree summation and Catalan closure for polymer cluster expansions with holes"
-version: 1.3.0
+version: 1.4.1
 date-released: 2026-06-23
 type: software
 authors:
@@ -12,8 +12,8 @@ url: "https://github.com/lluiseriksson/rooted-tree-catalan-closure"
 license: AGPL-3.0-or-later
 abstract: >-
   Recovered publication artifact containing the LaTeX manuscript, compiled PDF,
-  immutable provenance, Lean 4 patch manifest, and checked conditional adapter for
-  the rooted-tree Catalan closure argument.
+  immutable provenance, exact finite Catalan evidence, Lean 4 patch manifest, and
+  checked conditional adapter for the rooted-tree Catalan closure argument.
 keywords:
   - Lean 4
   - Catalan numbers

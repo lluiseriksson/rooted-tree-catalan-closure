@@ -10,6 +10,13 @@ concurrency:
   group: full-lean-replay-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  UPSTREAM_SHA: 1d044a353ac2b69ddca732dd851fb0ab4a94d7af
+  PATCH_COMMIT: d668c333db302f9f399374e3c824805a1c4d71da
+  LEAN_TOOLCHAIN: leanprover/lean4:v4.29.0-rc6
+  MATHLIB_SHA: 07642720480157414db592fa85b626dafb71355b
+  PYTHONUNBUFFERED: "1"
+
 jobs:
   replay:
     name: Replay conditional adapter in pinned upstream
@@ -28,6 +35,13 @@ jobs:
           ref: 1d044a353ac2b69ddca732dd851fb0ab4a94d7af
           path: upstream
           persist-credentials: false
+      - name: Verify immutable upstream pins
+        working-directory: upstream
+        run: |
+          test "$(git rev-parse HEAD)" = "$UPSTREAM_SHA"
+          test "$(tr -d '\r\n' < lean-toolchain)" = "$LEAN_TOOLCHAIN"
+          grep -Fq "$MATHLIB_SHA" lake-manifest.json
+          grep -Fq "From $PATCH_COMMIT " ../artifact/lean-patch/catalan-conditional-adapter.patch
       - name: Apply recovered mailbox patch
         working-directory: upstream
         run: |
@@ -51,14 +65,22 @@ jobs:
         working-directory: upstream
         run: |
           lake env lean oracle_check_catalan.lean 2>&1 | tee ../artifact/replay-oracle.log
-          ! grep -F 'sorryAx' ../artifact/replay-oracle.log
-          grep -F 'Classical.choice' ../artifact/replay-oracle.log
-          grep -F 'Quot.sound' ../artifact/replay-oracle.log
+      - name: Verify logs and emit replay report
+        run: |
+          python artifact/scripts/verify_replay_logs.py \
+            --build-log artifact/replay-build.log \
+            --oracle-log artifact/replay-oracle.log \
+            --output artifact/replay-report.json \
+            --artifact-sha "$GITHUB_SHA" \
+            --upstream-sha "$UPSTREAM_SHA" \
+            --lean-toolchain "$LEAN_TOOLCHAIN" \
+            --mathlib-sha "$MATHLIB_SHA"
       - uses: actions/upload-artifact@v4
         with:
-          name: full-lean-replay-logs
+          name: full-lean-replay-evidence
           path: |
             artifact/replay-build.log
             artifact/replay-oracle.log
+            artifact/replay-report.json
           if-no-files-found: error
           retention-days: 30

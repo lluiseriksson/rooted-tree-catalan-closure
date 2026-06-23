@@ -16,12 +16,15 @@ concurrency:
 
 env:
   PYTHONUNBUFFERED: "1"
+  UPSTREAM_SHA: 1d044a353ac2b69ddca732dd851fb0ab4a94d7af
+  LEAN_TOOLCHAIN: leanprover/lean4:v4.29.0-rc6
+  MATHLIB_SHA: 07642720480157414db592fa85b626dafb71355b
 
 jobs:
   static-and-package:
-    name: Static integrity and deterministic release
+    name: Integrity, finite evidence, and deterministic release
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,18 +33,45 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Audit recovered artifact
-        run: make static
+      - name: Audit, test, and replay finite Catalan evidence
+        run: make ci
       - name: Prove package determinism
         run: make package-determinism
-      - name: Build and verify release outputs
+      - name: Build and independently verify release outputs
         run: make verify-release
       - uses: actions/upload-artifact@v4
         with:
           name: rooted-tree-catalan-closure-release
-          path: release/*
+          path: |
+            release/*
+            evidence/finite-catalan-checks.json
+            archive/theorem-manifest.json
           if-no-files-found: error
           retention-days: 30
+
+
+  tooling-matrix:
+    name: Tooling on Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Standard-library test suite
+        run: python -m unittest discover -s tests -v
+      - name: Portable finite Catalan smoke check
+        run: >-
+          python scripts/check_finite_catalan.py
+          --max-n 6 --graph-max-n 5 --no-evidence-check
 
   patch-application:
     name: Patch applies to immutable upstream base
@@ -60,6 +90,12 @@ jobs:
           ref: 1d044a353ac2b69ddca732dd851fb0ab4a94d7af
           path: upstream
           persist-credentials: false
+      - name: Verify upstream pins
+        working-directory: upstream
+        run: |
+          test "$(git rev-parse HEAD)" = "$UPSTREAM_SHA"
+          test "$(tr -d '\r\n' < lean-toolchain)" = "$LEAN_TOOLCHAIN"
+          grep -Fq "$MATHLIB_SHA" lake-manifest.json
       - name: Check and apply mailbox patch
         working-directory: upstream
         run: |
@@ -81,22 +117,22 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Install TeX and PDF inspection tools
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             texlive-latex-base texlive-latex-extra texlive-fonts-recommended \
-            texlive-science poppler-utils lmodern
-      - name: Build paper
-        run: make paper
-      - name: Inspect rebuilt PDF
-        run: |
-          python scripts/check_repository.py --accept-rebuilt-pdf
-          pdfinfo Rooted_tree_Catalan_closure.pdf
-          pdftotext Rooted_tree_Catalan_closure.pdf - | grep -F 'Rooted-tree summation and Catalan closure'
+            texlive-science lmodern poppler-utils
+      - name: Build and inspect paper without modifying tracked PDF
+        run: make paper-check
+      - name: Confirm tracked recovered PDF remains unchanged
+        run: git diff --exit-code -- Rooted_tree_Catalan_closure.pdf
       - uses: actions/upload-artifact@v4
         with:
           name: rebuilt-manuscript
-          path: Rooted_tree_Catalan_closure.pdf
+          path: build/Rooted_tree_Catalan_closure.pdf
           if-no-files-found: error
           retention-days: 30

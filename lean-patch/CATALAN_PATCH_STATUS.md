@@ -1,41 +1,46 @@
 # Catalan patch status
 
-**Artifact version:** 1.3.0
+Base snapshot: `1d044a353ac2b69ddca732dd851fb0ab4a94d7af`
+Checked mailbox patch commit: `d668c333db302f9f399374e3c824805a1c4d71da`
+Lean: `leanprover/lean4:v4.29.0-rc6`
+Mathlib: `07642720480157414db592fa85b626dafb71355b`
 
-**Formal status:** checked conditional adapter; general Catalan identity remains open.
+This branch carries a checked, conditional Catalan adapter:
 
-## Pinned environment
+- `YangMills/KP/RootedCatalan.lean`
+- `YangMills/RG/AppendixFHsharpCatalanClosure.lean`
+- `YangMills/RG/AppendixFHsharpCatalanSource.lean`
+- `oracle_check_catalan.lean`
 
-- Base snapshot: `1d044a353ac2b69ddca732dd851fb0ab4a94d7af`
-- Checked patch commit: `d668c333db302f9f399374e3c824805a1c4d71da`
-- Lean: `leanprover/lean4:v4.29.0-rc6`
-- Mathlib: `07642720480157414db592fa85b626dafb71355b`
+## Certified here
 
-## Certified in the archived adapter
+- The exact Catalan replacement point is named as
+  `YangMills.KP.RootedChildFactorialCatalanIdentity`.
+- `YangMills.RG.catalanClosure_fixedPoint` is proved.
+- The marked-root Appendix-F bound is proved conditional on
+  `RootedChildFactorialCatalanIdentity n`.
+- The captured oracle report contains only `[propext, Classical.choice, Quot.sound]`.
+- Exact finite computations agree with the identity through `n = 8`, with independent
+  direct tree enumeration through `n = 7`.
 
-- `YangMills.KP.RootedChildFactorialCatalanIdentity` names the exact replacement point.
-- `YangMills.RG.catalanClosure_fixedPoint` proves the square-root fixed-point identity.
-- `YangMills.RG.catalanClosure_nonneg` proves nonnegativity in the stated small regime.
-- `YangMills.RG.appendixFHoleHsharpWeightedTreeMarkedRootSum_le_catalan_of_expWeight`
-  proves the marked-root Appendix-F bound conditional on the exact identity at order `n`.
-- The oracle log reports only `[propext, Classical.choice, Quot.sound]`.
-- The archived build log ends with `Build completed successfully (8235 jobs).`
+## Not certified here
 
-## Not certified in this artifact
-
-The proposition
+This is not a closed formal proof. The general proposition
 
 ```lean
 YangMills.KP.RootedChildFactorialCatalanIdentity n
 ```
 
-has not been proved for every `n` in Lean. This repository is therefore not a closed
-formal proof of the exact general identity. It is a checked conditional downstream
-adapter plus an exact statement of the remaining combinatorial obligation.
+remains open for arbitrary `n`. The finite checker is exact at the tested orders but is
+not a substitute for the missing Lean proof. The artifact consists of a verified
+downstream adapter, executable finite evidence, and a precise proof roadmap.
 
-## Integrity and replay
+## Replay commands
 
-`project.json` pins the critical recovered files by Git blob ID.
-`scripts/check_repository.py` verifies those IDs, the active Lean placeholder policy,
-the captured logs, and the claim boundary. CI checks that the mailbox patch applies to
-the exact upstream base; `full-lean-replay.yml` performs the clean kernel replay.
+```sh
+lake exe cache get
+lake build YangMillsCore
+lake build YangMills.KP.RootedCatalan YangMills.RG.AppendixFHsharpCatalanClosure
+lake build YangMills.RG.AppendixFHsharpCatalanSource
+lake env lean oracle_check_catalan.lean
+```

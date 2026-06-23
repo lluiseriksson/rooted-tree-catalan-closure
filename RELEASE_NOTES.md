@@ -1,22 +1,34 @@
 # Release notes
 
-## v1.3.0 — archival integrity and replay hardening
+## v1.4.1 finite-evidence and replay hardening
 
-This release upgrades the recovered bundle from basic CI and packaging to a complete
-operational recovery gate.
+This release moves beyond archival hardening and adds an independent executable check of
+the central rooted-tree identity while preserving the formal claim boundary.
+
+It is rebased onto the CI-green `e50d83f` master state, preserves the immediate Makefile source assignment, and tests the standard-library tooling on Python 3.11–3.13.
 
 ### Added
 
-- Critical Git-blob verification for all primary recovered materials.
-- Full repository audit of active Lean placeholders, axioms, evidence, claims, pins,
-  metadata, workflows, and PDF structure.
-- Byte-for-byte deterministic packaging replay and independent release verifier.
-- Internal source manifest, external checksum, SPDX 2.3 SBOM, and release metadata.
-- Exact upstream patch-application CI and manually dispatched full Lean replay.
-- Tag-driven release automation, CodeMeta/Zenodo metadata, Dependabot, issue/PR templates,
-  contribution policy, provenance record, and release checklist.
+- Exact Prüfer-word checks through `n = 8`.
+- Independent direct spanning-tree checks through `n = 7`.
+- Exact occurrence-profile checks through `n = 8`.
+- Deterministic evidence JSON and theorem manifest.
+- A narrow Prüfer-profile Lean closure plan.
+- Verified bootstrap scripts for the immutable upstream patch.
+- Machine-readable full Lean replay reports.
 
-### Preserved
+### Release and CI improvements
 
-The formal boundary remains unchanged: the downstream adapter is checked conditional on
-`YangMills.KP.RootedChildFactorialCatalanIdentity n`; the general Lean proof is still open.
+- Paper builds now write under `build/` and cannot silently replace the recovered PDF.
+- Source ZIPs use normalized `ZIP_STORED` entries, avoiding zlib-version-dependent bytes.
+- Release verification compares the archive, manifest, SBOM, metadata, finite evidence,
+  theorem manifest, and current source tree.
+- Tagged attestations are guarded so manual dry runs do not publish provenance records.
+- A complementary full-history Git bundle preserves commits and refs with checksums, a
+  machine-readable inventory, structural verification, and tag-release publication.
+
+### Formal boundary preserved
+
+The exact finite computations do not close the general Lean theorem. The proposition
+`YangMills.KP.RootedChildFactorialCatalanIdentity n` remains explicitly open for arbitrary
+`n`; the downstream Lean adapter remains conditional on it.

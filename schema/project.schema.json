@@ -1,0 +1,181 @@
+{
+  "$id": "https://github.com/lluiseriksson/rooted-tree-catalan-closure/raw/master/schema/project.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "claim_boundary": {
+      "properties": {
+        "closed_exact_catalan_identity": {
+          "const": false
+        },
+        "conditional_downstream_adapter": {
+          "const": true
+        }
+      },
+      "required": [
+        "closed_exact_catalan_identity",
+        "conditional_downstream_adapter"
+      ],
+      "type": "object"
+    },
+    "critical_git_blobs": {
+      "additionalProperties": {
+        "pattern": "^[0-9a-f]{40}$",
+        "type": "string"
+      },
+      "minProperties": 1,
+      "type": "object"
+    },
+    "default_branch": {
+      "const": "master"
+    },
+    "expected_axioms": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "finite_evidence": {
+      "properties": {
+        "graph_max_n": {
+          "const": 7
+        },
+        "max_n": {
+          "const": 8
+        },
+        "status": {
+          "const": "finite_exact_computational_evidence_not_formal_proof"
+        }
+      },
+      "required": [
+        "file",
+        "max_n",
+        "graph_max_n",
+        "methods",
+        "status"
+      ],
+      "type": "object"
+    },
+    "history_backup_outputs": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 3,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "name": {
+      "const": "rooted-tree-catalan-closure"
+    },
+    "recovery_policy": {
+      "properties": {
+        "history_bundle_byte_reproducibility_claim": {
+          "const": false
+        },
+        "off_site_storage_recommended": {
+          "const": true
+        }
+      },
+      "required": [
+        "source_tree",
+        "git_history",
+        "off_site_storage_recommended",
+        "history_bundle_byte_reproducibility_claim"
+      ],
+      "type": "object"
+    },
+    "release_date": {
+      "format": "date",
+      "type": "string"
+    },
+    "release_outputs": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 4,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "repository": {
+      "format": "uri",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 3
+    },
+    "status": {
+      "const": "recovered_conditional_publication_artifact"
+    },
+    "tooling_python_versions": {
+      "const": [
+        "3.11",
+        "3.12",
+        "3.13"
+      ],
+      "type": "array"
+    },
+    "unresolved_obligation": {
+      "const": "YangMills.KP.RootedChildFactorialCatalanIdentity n for every n"
+    },
+    "upstream": {
+      "properties": {
+        "base_commit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "checked_patch_commit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "mathlib_commit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repository",
+        "base_commit",
+        "checked_patch_commit",
+        "lean_toolchain",
+        "mathlib_commit"
+      ],
+      "type": "object"
+    },
+    "verified_declarations": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "version": {
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "name",
+    "version",
+    "release_date",
+    "status",
+    "default_branch",
+    "repository",
+    "upstream",
+    "critical_git_blobs",
+    "expected_axioms",
+    "verified_declarations",
+    "unresolved_obligation",
+    "finite_evidence",
+    "theorem_manifest",
+    "release_outputs",
+    "history_backup_outputs",
+    "claim_boundary",
+    "recovery_policy",
+    "tooling_python_versions"
+  ],
+  "title": "Rooted-tree Catalan closure project metadata",
+  "type": "object"
+}

@@ -1,0 +1,39 @@
+name: history-backup
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: history-backup-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  bundle:
+    name: Create and verify complete Git history bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Audit repository before history capture
+        run: make static
+      - name: Create git bundle and ref inventory
+        run: python scripts/create_history_bundle.py --output-dir history-release
+      - name: Verify history bundle
+        run: python scripts/verify_history_bundle.py --release-dir history-release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rooted-tree-catalan-closure-history
+          path: history-release/*
+          if-no-files-found: error
+          retention-days: 90

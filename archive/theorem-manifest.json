@@ -1,0 +1,60 @@
+{
+  "artifact_version": "1.4.1",
+  "declarations": [
+    {
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "evidence": "lean-patch/verification/oracle_check_catalan.log",
+      "name": "YangMills.KP.rootedChildCount_factorialTreeSum_normalized_le_catalan_of_identity",
+      "source": "lean-patch/YangMills/KP/RootedCatalan.lean",
+      "status": "verified_conditional",
+      "uses_explicit_hypothesis": "YangMills.KP.RootedChildFactorialCatalanIdentity n"
+    },
+    {
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "evidence": "lean-patch/verification/oracle_check_catalan.log",
+      "name": "YangMills.RG.catalanClosure_fixedPoint",
+      "source": "lean-patch/YangMills/RG/AppendixFHsharpCatalanClosure.lean",
+      "status": "verified"
+    },
+    {
+      "axioms": [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ],
+      "evidence": "lean-patch/verification/oracle_check_catalan.log",
+      "name": "YangMills.RG.appendixFHoleHsharpWeightedTreeMarkedRootSum_le_catalan_of_expWeight",
+      "source": "lean-patch/YangMills/RG/AppendixFHsharpCatalanSource.lean",
+      "status": "verified_conditional",
+      "uses_explicit_hypothesis": "YangMills.KP.RootedChildFactorialCatalanIdentity n"
+    },
+    {
+      "finite_evidence": "evidence/finite-catalan-checks.json",
+      "name": "YangMills.KP.RootedChildFactorialCatalanIdentity",
+      "roadmap": "docs/PRUFER_PROFILE_REDUCTION.md",
+      "source": "lean-patch/YangMills/KP/RootedCatalan.lean",
+      "statement_scope": "for every natural number n",
+      "status": "open_general_lean_proof"
+    }
+  ],
+  "formal_boundary": {
+    "closed_exact_catalan_identity": false,
+    "conditional_downstream_adapter": true
+  },
+  "schema_version": 1,
+  "upstream": {
+    "base_commit": "1d044a353ac2b69ddca732dd851fb0ab4a94d7af",
+    "checked_patch_commit": "d668c333db302f9f399374e3c824805a1c4d71da",
+    "lean_toolchain": "leanprover/lean4:v4.29.0-rc6",
+    "mathlib_commit": "07642720480157414db592fa85b626dafb71355b",
+    "repository": "https://github.com/lluiseriksson/THE-ERIKSSON-PROGRAMME"
+  }
+}

@@ -1,38 +1,62 @@
 # Contributing
 
-Changes are welcome when they preserve the artifact's mathematical, provenance, and
-reproducibility boundary.
+Contributions are welcome when they preserve the artifact's provenance, reproducibility,
+and formal-claim boundary.
 
-Before proposing a change, run:
+## Required checks
+
+For documentation, metadata, evidence, or tooling changes:
 
 ```sh
-make static
+make ci
 make package-determinism
 make verify-release
+make history-bundle
+make verify-history
 ```
 
-Run `make verify` when TeX is available. Changes to `lean-patch/` must additionally pass
-the manually dispatched full Lean replay.
+For TeX changes, also run:
 
-## Lean changes
+```sh
+make paper-check
+```
 
-A Lean change must:
+Use `make paper-refresh` only when intentionally replacing the tracked recovered PDF;
+update its critical Git blob and provenance record in the same change.
 
-1. contain no `sorry`, `admit`, `sorryAx`, or project-local axiom;
-2. keep assumptions explicit in theorem statements;
-3. update the oracle driver and captured evidence;
-4. update `project.json`, the status page, manifest, and claims boundary together;
-5. identify the exact upstream, Lean, and Mathlib revisions used for verification.
+## Finite evidence changes
 
-Do not rename the conditional identity as a proved theorem until the general bijection
-has passed a clean kernel build.
+`scripts/check_finite_catalan.py` and `evidence/finite-catalan-checks.json` form one
+review unit. Regenerate with `make finite-refresh`, inspect the complete diff, and keep
+the status text explicit that finite computation is not the general Lean proof.
 
-## Manuscript changes
+## Lean or patch changes
 
-`main.tex` is canonical. Rebuild and visually inspect the PDF, then intentionally update
-the corresponding critical Git blobs in `project.json` in the same change.
+A Lean-facing change must include:
 
-## Pin and release changes
+1. a clean proof with no `sorry`, `admit`, `sorryAx`, or project-local axiom;
+2. updated source copies and mailbox patch;
+3. an updated oracle driver and exact axiom report;
+4. updated `archive/theorem-manifest.json`, claim-boundary documentation, and pins;
+5. a clean full replay in the immutable upstream environment.
 
-Dependency pins must change in a dedicated, fully replayed commit. A release tag must
-exactly equal `v` followed by the version in `project.json` and `CITATION.cff`.
+Do not replace an explicit hypothesis with a hidden axiom. If the general
+`RootedChildFactorialCatalanIdentity n` is completed, update every conditional-status
+surface atomically.
+
+## Dependencies and workflows
+
+GitHub Actions changes must keep permissions minimal, disable persisted checkout
+credentials, use immutable repository/toolchain pins where the project provides them,
+and preserve tag-only guards on publication and attestation steps.
+
+## Recovery tooling changes
+
+Changes to history backup code must preserve the explicit distinction between the
+byte-deterministic source ZIP and the checksum/structure-verified Git bundle. Run the
+history integration test and confirm a clone from the generated bundle retains earlier
+commits and tags.
+
+## Publication-critical Make variables
+
+Keep `TEX := main.tex` and `TRACKED_PDF := Rooted_tree_Catalan_closure.pdf` as immediate assignments. Conditional assignment permits runner environment variables to select the wrong manuscript source.
