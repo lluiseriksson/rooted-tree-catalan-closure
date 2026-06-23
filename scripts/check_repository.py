@@ -13,6 +13,8 @@ import sys
 from pathlib import Path
 from typing import Iterable
 
+from check_actions_pins import audit_workflows, load_policy
+
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_FILES = (
     "README.md",
@@ -31,6 +33,7 @@ REQUIRED_FILES = (
     "codemeta.json",
     ".zenodo.json",
     "archive/theorem-manifest.json",
+    "archive/github-actions-policy.json",
     "evidence/README.md",
     "evidence/finite-catalan-checks.json",
     "docs/CLAIMS_BOUNDARY.md",
@@ -41,6 +44,7 @@ REQUIRED_FILES = (
     "docs/PRUFER_PROFILE_REDUCTION.md",
     "docs/DISASTER_RECOVERY.md",
     "docs/CI_PORTABILITY.md",
+    "docs/SUPPLY_CHAIN.md",
     "schema/project.schema.json",
     "lean-patch/CATALAN_PATCH_STATUS.md",
     "lean-patch/catalan-conditional-adapter.patch",
@@ -53,6 +57,7 @@ REQUIRED_FILES = (
     "scripts/bootstrap_upstream_patch.sh",
     "scripts/bootstrap_upstream_patch.ps1",
     "scripts/check_finite_catalan.py",
+    "scripts/check_actions_pins.py",
     "scripts/check_pdf.py",
     "scripts/check_repository.py",
     "scripts/package_release.py",
@@ -62,6 +67,7 @@ REQUIRED_FILES = (
     "scripts/create_history_bundle.py",
     "scripts/verify_history_bundle.py",
     "tests/test_artifact_tools.py",
+    "tests/test_actions_pins.py",
     "tests/test_finite_catalan.py",
     "tests/test_replay_logs.py",
     "tests/test_history_bundle.py",
@@ -70,6 +76,7 @@ REQUIRED_FILES = (
     ".github/workflows/full-lean-replay.yml",
     ".github/workflows/release.yml",
     ".github/workflows/history-backup.yml",
+    ".github/dependabot.yml",
 )
 FORBIDDEN_FILES = ("apply_improvements.py", ".github/workflows/artifact.yml")
 LEAN_FILES = (
@@ -273,7 +280,7 @@ def main() -> int:
 
     files = repository_files()
     project = json.loads(read_text("project.json"))
-    audit.require(project.get("schema_version") == 3, "unsupported project.json schema")
+    audit.require(project.get("schema_version") == 4, "unsupported project.json schema")
     audit.require(project.get("name") == "rooted-tree-catalan-closure", "wrong project name")
     audit.require(project.get("default_branch") == "master", "default branch record is not master")
     audit.require(
@@ -284,6 +291,7 @@ def main() -> int:
     schema = json.loads(read_text("schema/project.schema.json"))
     audit.require(schema.get("$schema") == "https://json-schema.org/draft/2020-12/schema", "project schema draft drift")
     audit.require("history_backup_outputs" in schema.get("required", []), "project schema omits history outputs")
+    audit.require("actions_policy" in schema.get("required", []), "project schema omits actions policy")
     audit.require(
         project.get("tooling_python_versions") == ["3.11", "3.12", "3.13"],
         "tooling Python matrix drift",
@@ -303,6 +311,8 @@ def main() -> int:
     recovery_policy = project.get("recovery_policy", {})
     audit.require(recovery_policy.get("off_site_storage_recommended") is True, "off-site recovery policy drift")
     audit.require(recovery_policy.get("history_bundle_byte_reproducibility_claim") is False, "history bundle overclaims byte reproducibility")
+    actions_policy_rel = project.get("actions_policy")
+    audit.require(actions_policy_rel == "archive/github-actions-policy.json", "actions-policy path drift")
     boundary = project.get("claim_boundary", {})
     audit.require(boundary.get("closed_exact_catalan_identity") is False, "closed-proof flag drift")
     audit.require(boundary.get("conditional_downstream_adapter") is True, "adapter status drift")
@@ -339,6 +349,12 @@ def main() -> int:
     main_tex = read_text("main.tex")
     for label in ("base", "lean", "mathlib"):
         audit.require(pins[label] in main_tex, f"main.tex lost the {label} pin")
+
+    for rel in project["critical_git_blobs"]:
+        audit.require(
+            not rel.startswith(".github/workflows/"),
+            f"workflow file must be governed semantically rather than frozen as a critical blob: {rel}",
+        )
 
     for rel, expected in project["critical_git_blobs"].items():
         path = ROOT / rel
@@ -489,6 +505,7 @@ def main() -> int:
     )
     audit.require("TEX ?=" not in makefile, "Makefile reintroduced environment-sensitive TEX ?=")
     for target in (
+        "actions-check:",
         "finite-check:",
         "paper-refresh:",
         "package-determinism:",
@@ -498,7 +515,20 @@ def main() -> int:
         "recovery:",
     ):
         audit.require(target in makefile, f"Makefile lacks target {target}")
-    audit.require("ZIP_STORED" in read_text("scripts/package_release.py"), "release ZIP is not cross-runtime stored")
+    package_source = read_text("scripts/package_release.py")
+    audit.require("ZIP_STORED" in package_source, "release ZIP is not cross-runtime stored")
+    audit.require("ARCHIVED_EVIDENCE_LOGS" in package_source, "source package does not preserve archived Lean evidence logs")
+    verifier_source = read_text("scripts/verify_release.py")
+    audit.require("run_extracted_self_audit" in verifier_source, "release verifier does not audit the extracted source archive")
+
+    try:
+        action_policy = load_policy(ROOT / actions_policy_rel)
+        action_errors, action_counts = audit_workflows(ROOT, action_policy)
+        for error in action_errors:
+            audit.errors.append(f"GitHub Actions policy: {error}")
+        audit.require(sum(action_counts.values()) >= 10, "unexpectedly small GitHub Actions reference inventory")
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        audit.errors.append(f"invalid GitHub Actions policy: {exc}")
 
     ci = read_text(".github/workflows/artifact-ci.yml")
     for python_version in project["tooling_python_versions"]:
@@ -533,8 +563,14 @@ def main() -> int:
     )
     release = read_text(".github/workflows/release.yml")
     audit.require("tags: [\"v*\"]" in release and "gh release create" in release, "tagged release workflow is incomplete")
-    audit.require("attest-build-provenance@v2" in release, "tagged release lacks provenance attestations")
+    audit.require("actions/attest-build-provenance@" in release, "tagged release lacks provenance attestations")
     audit.require("history-release/*" in release, "tagged release omits full-history recovery artifacts")
+    dependabot = read_text(".github/dependabot.yml")
+    audit.require("groups:" in dependabot and "github-actions:" in dependabot, "Dependabot action updates are not grouped")
+    audit.require("open-pull-requests-limit: 1" in dependabot, "Dependabot may open parallel action-update PRs")
+    dependency_review = read_text(".github/workflows/dependency-review.yml")
+    audit.require("fail-on-severity: high" in dependency_review, "dependency review severity policy drift")
+    audit.require("retry-on-snapshot-warnings: true" in dependency_review, "dependency review snapshot retry is disabled")
     audit.require(
         release.count("if: startsWith(github.ref, 'refs/tags/')") >= 3,
         "tag-only release/attestation guards are incomplete",

@@ -26,8 +26,19 @@ EXCLUDED_PARTS = {
     ".ruff_cache",
     ".venv",
 }
-EXCLUDED_SUFFIXES = {".aux", ".fdb_latexmk", ".fls", ".log", ".out", ".synctex.gz", ".toc"}
-EXCLUDED_NAMES = {"main.pdf", ".coverage", "replay-report.json"}
+EXCLUDED_SUFFIXES = {".aux", ".fdb_latexmk", ".fls", ".out", ".synctex.gz", ".toc"}
+EXCLUDED_NAMES = {
+    "main.pdf",
+    "main.log",
+    ".coverage",
+    "replay-build.log",
+    "replay-oracle.log",
+    "replay-report.json",
+}
+ARCHIVED_EVIDENCE_LOGS = (
+    "lean-patch/verification/catalan-build.log",
+    "lean-patch/verification/oracle_check_catalan.log",
+)
 
 
 def sha256(data: bytes) -> str:
@@ -113,6 +124,10 @@ def main() -> int:
     metadata_path = output_dir / f"{prefix}.release.json"
 
     files = repository_files(output_dir)
+    selected_paths = {path.relative_to(ROOT).as_posix() for path in files}
+    missing_evidence = sorted(set(ARCHIVED_EVIDENCE_LOGS) - selected_paths)
+    if missing_evidence:
+        raise SystemExit(f"archived verification evidence omitted from source package: {missing_evidence}")
     records: list[dict[str, object]] = []
     for path in files:
         rel = path.relative_to(ROOT).as_posix()
@@ -202,7 +217,7 @@ def main() -> int:
     finite_evidence = ROOT / "evidence" / "finite-catalan-checks.json"
     theorem_manifest = ROOT / "archive" / "theorem-manifest.json"
     release_meta = {
-        "schema_version": 2,
+        "schema_version": 3,
         "name": project["name"],
         "version": version,
         "release_date": project["release_date"],
@@ -211,6 +226,11 @@ def main() -> int:
         "source_tree_sha256": source_tree_sha256,
         "source_file_count": len(records),
         "source_manifest": "SOURCE-MANIFEST.sha256",
+        "source_archive_self_audit": {
+            "command": "python scripts/check_repository.py",
+            "required": True,
+            "archived_evidence_logs": list(ARCHIVED_EVIDENCE_LOGS),
+        },
         "archive_method": "ZIP_STORED",
         "normalized_timestamp": release_date.strftime("%Y-%m-%dT00:00:00Z"),
         "sbom": sbom_path.name,

@@ -7,12 +7,14 @@ import argparse
 import hashlib
 import json
 import stat
+import subprocess
 import sys
+import tempfile
 import zipfile
 from datetime import datetime
 from pathlib import Path
 
-from package_release import ROOT, file_license, repository_files
+from package_release import ARCHIVED_EVIDENCE_LOGS, ROOT, file_license, repository_files
 
 
 def sha256(data: bytes) -> str:
@@ -22,6 +24,23 @@ def sha256(data: bytes) -> str:
 def fail(message: str) -> None:
     print(f"ERROR: {message}", file=sys.stderr)
     raise SystemExit(1)
+
+
+def run_extracted_self_audit(extracted_root: Path) -> None:
+    command = [sys.executable, "scripts/check_repository.py"]
+    proc = subprocess.run(
+        command,
+        cwd=extracted_root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        fail(
+            "extracted source archive failed its repository audit:\n"
+            + proc.stdout
+            + proc.stderr
+        )
 
 
 def main() -> int:
@@ -51,48 +70,61 @@ def main() -> int:
     release_date = datetime.fromisoformat(project["release_date"])
     expected_timestamp = (release_date.year, release_date.month, release_date.day, 0, 0, 0)
     manifest_name = f"{prefix}/SOURCE-MANIFEST.sha256"
-    with zipfile.ZipFile(archive) as source_zip:
-        if source_zip.comment:
-            fail("ZIP has a nonempty archive comment")
-        infos = source_zip.infolist()
-        names = [info.filename for info in infos]
-        if len(names) != len(set(names)):
-            fail("ZIP contains duplicate names")
-        if any(name.startswith("/") or ".." in Path(name).parts for name in names):
-            fail("ZIP contains an unsafe path")
-        if manifest_name not in names:
-            fail("ZIP lacks the internal source manifest")
-        expected_order = sorted(name for name in names if name != manifest_name) + [manifest_name]
-        if names != expected_order:
-            fail("ZIP entries are not in canonical path order")
-        for info in infos:
-            if info.compress_type != zipfile.ZIP_STORED:
-                fail(f"ZIP entry is compressed and may vary across zlib versions: {info.filename}")
-            if info.date_time != expected_timestamp:
-                fail(f"ZIP timestamp drift: {info.filename}: {info.date_time}")
-            if info.create_system != 3:
-                fail(f"ZIP entry is not normalized as Unix: {info.filename}")
-            mode = stat.S_IMODE(info.external_attr >> 16)
-            if mode not in {0o644, 0o755}:
-                fail(f"unexpected ZIP mode {oct(mode)}: {info.filename}")
-            if info.extra:
-                fail(f"ZIP entry contains noncanonical extra metadata: {info.filename}")
-        manifest_bytes = source_zip.read(manifest_name)
-        manifest = manifest_bytes.decode("utf-8")
-        manifest_records: dict[str, str] = {}
-        for line in manifest.splitlines():
-            digest_value, rel = line.split("  ", 1)
-            if rel in manifest_records:
-                fail(f"duplicate path in internal manifest: {rel}")
-            manifest_records[rel] = digest_value
-        archived_files = {
-            name[len(prefix) + 1 :]: name for name in names if name != manifest_name
-        }
-        if set(archived_files) != set(manifest_records):
-            fail("ZIP contents do not match internal manifest paths")
-        for rel, name in archived_files.items():
-            if sha256(source_zip.read(name)) != manifest_records[rel]:
-                fail(f"internal manifest checksum mismatch: {rel}")
+
+    with tempfile.TemporaryDirectory(prefix="rtcc-source-audit-") as temp:
+        extraction_root = Path(temp)
+        with zipfile.ZipFile(archive) as source_zip:
+            if source_zip.comment:
+                fail("ZIP has a nonempty archive comment")
+            infos = source_zip.infolist()
+            names = [info.filename for info in infos]
+            if len(names) != len(set(names)):
+                fail("ZIP contains duplicate names")
+            if any(name.startswith("/") or ".." in Path(name).parts for name in names):
+                fail("ZIP contains an unsafe path")
+            if manifest_name not in names:
+                fail("ZIP lacks the internal source manifest")
+            expected_order = sorted(name for name in names if name != manifest_name) + [manifest_name]
+            if names != expected_order:
+                fail("ZIP entries are not in canonical path order")
+            for info in infos:
+                if info.compress_type != zipfile.ZIP_STORED:
+                    fail(f"ZIP entry is compressed and may vary across zlib versions: {info.filename}")
+                if info.date_time != expected_timestamp:
+                    fail(f"ZIP timestamp drift: {info.filename}: {info.date_time}")
+                if info.create_system != 3:
+                    fail(f"ZIP entry is not normalized as Unix: {info.filename}")
+                mode = stat.S_IMODE(info.external_attr >> 16)
+                if mode not in {0o644, 0o755}:
+                    fail(f"unexpected ZIP mode {oct(mode)}: {info.filename}")
+                if info.extra:
+                    fail(f"ZIP entry contains noncanonical extra metadata: {info.filename}")
+
+            manifest_bytes = source_zip.read(manifest_name)
+            manifest = manifest_bytes.decode("utf-8")
+            manifest_records: dict[str, str] = {}
+            for line in manifest.splitlines():
+                digest_value, rel = line.split("  ", 1)
+                if rel in manifest_records:
+                    fail(f"duplicate path in internal manifest: {rel}")
+                manifest_records[rel] = digest_value
+            archived_files = {
+                name[len(prefix) + 1 :]: name for name in names if name != manifest_name
+            }
+            if set(archived_files) != set(manifest_records):
+                fail("ZIP contents do not match internal manifest paths")
+            for rel, name in archived_files.items():
+                if sha256(source_zip.read(name)) != manifest_records[rel]:
+                    fail(f"internal manifest checksum mismatch: {rel}")
+            for rel in ARCHIVED_EVIDENCE_LOGS:
+                if rel not in archived_files:
+                    fail(f"source ZIP omits archived verification evidence: {rel}")
+            source_zip.extractall(extraction_root)
+
+        extracted_root = extraction_root / prefix
+        if not extracted_root.is_dir():
+            fail("source ZIP does not have the expected single top-level directory")
+        run_extracted_self_audit(extracted_root)
 
     current_records = {
         path.relative_to(ROOT).as_posix(): sha256(path.read_bytes())
@@ -124,7 +156,7 @@ def main() -> int:
         fail("SPDX package license expression drift")
 
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    if meta.get("schema_version") != 2:
+    if meta.get("schema_version") != 3:
         fail("unsupported release metadata schema")
     if meta["source_archive"] != archive.name or meta["source_archive_sha256"] != digest:
         fail("release metadata does not match source archive")
@@ -136,6 +168,13 @@ def main() -> int:
         fail("release metadata archive method mismatch")
     if meta["version"] != project["version"] or meta["formal_status"] != project["status"]:
         fail("release metadata does not match project metadata")
+    self_audit = meta.get("source_archive_self_audit", {})
+    if self_audit.get("required") is not True:
+        fail("release metadata does not require source-archive self-audit")
+    if self_audit.get("command") != "python scripts/check_repository.py":
+        fail("release metadata source-archive audit command drift")
+    if self_audit.get("archived_evidence_logs") != list(ARCHIVED_EVIDENCE_LOGS):
+        fail("release metadata archived-evidence inventory drift")
     history = meta.get("history_backup", {})
     if history.get("outputs") != project["history_backup_outputs"]:
         fail("release metadata history-output inventory mismatch")
@@ -150,7 +189,7 @@ def main() -> int:
 
     print(
         f"release verification passed: {len(manifest_records)} source files, "
-        f"cross-runtime stored ZIP, sha256 {digest}"
+        f"self-auditing cross-runtime stored ZIP, sha256 {digest}"
     )
     return 0
 

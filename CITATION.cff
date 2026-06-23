@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this recovered artifact, cite the repository and the paper."
 title: "Rooted-tree summation and Catalan closure for polymer cluster expansions with holes"
-version: 1.4.1
+version: 1.5.0
 date-released: 2026-06-23
 type: software
 authors:

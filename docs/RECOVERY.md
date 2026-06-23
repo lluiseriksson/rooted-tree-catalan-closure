@@ -14,10 +14,13 @@ formal theorem boundary remains conditional and is documented separately.
 5. Three exact finite computations of the Catalan tree identity through documented orders.
 6. Cross-runtime deterministic stored ZIP with source manifest, external SHA-256, SPDX
    2.3 SBOM, file-level license records, and release metadata.
-7. Independent release/source parity verifier and byte-for-byte packaging replay.
+7. Independent release/source parity verifier, extracted source-tree self-audit, and
+   byte-for-byte packaging replay.
 8. Tag-driven release workflow with GitHub provenance attestations and publication checklist.
 9. Full Git history/ref bundle with a machine-readable inventory, SHA-256 checksums, and
    independent `git bundle verify` validation.
+10. Full-SHA GitHub Action pins governed by an allowlisted major-version policy rather
+    than brittle whole-workflow blob locks.
 
 ## Acceptance gate
 

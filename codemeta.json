@@ -2,8 +2,8 @@
   "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
   "@type": "SoftwareSourceCode",
   "name": "Rooted-tree summation and Catalan closure",
-  "description": "Recovered publication artifact with exact finite Catalan evidence and a checked conditional Lean 4 adapter.",
-  "version": "1.4.1",
+  "description": "Recovered publication artifact with self-auditing source releases, SHA-pinned automation, exact finite Catalan evidence, and a checked conditional Lean 4 adapter.",
+  "version": "1.5.0",
   "datePublished": "2026-06-23",
   "codeRepository": "https://github.com/lluiseriksson/rooted-tree-catalan-closure",
   "license": "https://spdx.org/licenses/AGPL-3.0-or-later.html",
@@ -24,7 +24,7 @@
     "Catalan numbers",
     "rooted trees",
     "polymer cluster expansion",
-    "Pr\u00fcfer codes",
+    "Prüfer codes",
     "reproducible research"
   ]
 }

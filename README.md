@@ -24,6 +24,8 @@ Repository recovery and theorem completeness are separate questions:
 | Exact finite tree identity, `0 ≤ n ≤ 8` | Recomputed by three integer-only methods |
 | General Lean proof of `RootedChildFactorialCatalanIdentity n` | **Still open in this artifact** |
 | Static integrity, patch applicability, packaging, and release verification | Automated |
+| Source ZIP self-audit and archived Lean evidence | Verified after extraction |
+| Workflow supply chain | Allowlisted actions pinned to full commit SHAs |
 | Full Git history and refs | Recoverable through a verified Git bundle |
 
 The exact remaining proposition is:
@@ -72,8 +74,11 @@ The resulting Prüfer-profile reduction and a narrow Lean closure plan are docum
 
 [project.json](project.json) is the machine-readable source of truth. Its
 `critical_git_blobs` table protects the manuscript, PDF, Lean modules, patch, evidence,
-and theorem manifest from silent replacement or line-ending damage. The declaration
-status is mirrored in [archive/theorem-manifest.json](archive/theorem-manifest.json).
+and theorem manifest from silent replacement or line-ending damage. Workflow files are
+not frozen as scientific blobs; they are governed semantically by full-SHA action pins
+and an allowlisted major-version policy. See
+[docs/SUPPLY_CHAIN.md](docs/SUPPLY_CHAIN.md). The declaration status is mirrored in
+[archive/theorem-manifest.json](archive/theorem-manifest.json).
 
 ## Verify locally
 
@@ -108,7 +113,9 @@ make package
 ```
 
 The source ZIP uses uncompressed, normalized entries (`ZIP_STORED`) so its bytes do not
-depend on a particular zlib version.
+depend on a particular zlib version. It includes the archived Lean build/oracle logs, is
+extracted into a clean directory, and runs its own repository audit during
+`make verify-release`.
 
 Preserve and verify the complete commit graph and refs separately:
 
@@ -159,9 +166,11 @@ The archived evidence records a successful 8,235-job build and exactly
 - `Rooted_tree_Catalan_closure.pdf` — recovered compiled manuscript.
 - `lean-patch/` — conditional Lean adapter, mailbox patch, oracle driver, and evidence.
 - `archive/theorem-manifest.json` — machine-readable theorem status and evidence map.
+- `archive/github-actions-policy.json` — reviewed workflow action allowlist and major lines.
 - `evidence/` — deterministic exact finite checks and their scope statement.
 - `project.json` — version, pins, formal status, critical blobs, and release policy.
 - `scripts/check_repository.py` — local integrity and claim-boundary audit.
+- `scripts/check_actions_pins.py` — semantic full-SHA workflow supply-chain audit.
 - `scripts/package_release.py` — deterministic package, checksum, SBOM, and metadata.
 - `scripts/verify_release.py` — independent release/source parity verification.
 - `scripts/create_history_bundle.py` — complete Git history/ref recovery bundle.

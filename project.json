@@ -1,6 +1,7 @@
 {
+  "actions_policy": "archive/github-actions-policy.json",
   "archived_build_marker": "Build completed successfully (8235 jobs).",
-  "artifact_boundary": "The manuscript proves the combinatorial identity on paper and the repository contains a checked downstream Lean adapter. Exact finite computations now independently verify orders n=0 through n=8, but the general Lean proof remains an explicit obligation.",
+  "artifact_boundary": "The manuscript proves the combinatorial identity on paper and the repository contains a checked downstream Lean adapter. Exact finite computations independently verify orders n=0 through n=8, the source release is self-auditing, and the general Lean proof remains an explicit obligation.",
   "artifact_state": "recovered_publication_bundle",
   "claim_boundary": {
     "closed_exact_catalan_identity": false,
@@ -10,14 +11,10 @@
     "yang_mills_raw_activity": false
   },
   "critical_git_blobs": {
-    ".github/workflows/artifact-ci.yml": "f02293561c70a7a67036d6c7e0f72872db66848d",
-    ".github/workflows/dependency-review.yml": "6fc30b29f12ad9b1879e05dfd3bb8c4db2932860",
-    ".github/workflows/full-lean-replay.yml": "d7181d019cfec00e543681b087ed66ae4c22bfdb",
-    ".github/workflows/history-backup.yml": "ccee4874e7f7c2f48f6111c474e6d5ee74a99cc6",
-    ".github/workflows/release.yml": "9c4758c214e4112696cbaa428a8181816972710c",
-    "Makefile": "c2b5e099ef5021c87448add37237c52a2205ad9f",
+    "Makefile": "426e69426910915395010defc36b4a8e20f4a90e",
     "Rooted_tree_Catalan_closure.pdf": "dc4d0e680fda01cff2732cbd0b3e1d5cebf4ad98",
-    "archive/theorem-manifest.json": "335ea6288eb196fd71c86503d303d5754a9a3b75",
+    "archive/github-actions-policy.json": "ad6384da6e2e722fb63986c7c4816aedcc1f3efa",
+    "archive/theorem-manifest.json": "5d9d5a0dd0b5df721efa6631340d9ed621dca088",
     "evidence/finite-catalan-checks.json": "8555fd8a912219b4f194eb93b890f22334443eef",
     "lean-patch/YangMills/KP/RootedCatalan.lean": "5b0aa2902213020d995b77147bc44216e29c3fd4",
     "lean-patch/YangMills/RG/AppendixFHsharpCatalanClosure.lean": "1e50682a6feb00836013edeaa71ba59599e2af06",
@@ -27,13 +24,16 @@
     "lean-patch/verification/catalan-build.log": "b2241464ad31d8804dfdb5c39914b32813e7dc1d",
     "lean-patch/verification/oracle_check_catalan.log": "225e4d612b1aa5f30ca82be4b7233da08c9cfc52",
     "main.tex": "190b09ba24e4d2b1f62df3646d87035cf9f89451",
-    "schema/project.schema.json": "c138581541dfdd7919d9a81b6e35a0bbbb8a0c92",
+    "schema/project.schema.json": "4d40d59e2406f06bf517c5b08ae1cfc02a110d8e",
+    "scripts/check_actions_pins.py": "ce563ed906025ca585ee3ad79ddc54e45fa7d509",
+    "scripts/check_determinism.py": "92461028cbdf3e75912a2c51474200200b45253e",
     "scripts/check_finite_catalan.py": "1a11bb9149ae16ea72cf2b58b84e6f3a0afc4440",
-    "scripts/check_repository.py": "5687ab519979b7854d9089864a3ff11ba1b59489",
+    "scripts/check_repository.py": "806c53ae3c2c4191bd5a941062024c34e0a5d352",
     "scripts/create_history_bundle.py": "0c5dcb77a0c02abc5e9cd931f521f8ad48067a8f",
-    "scripts/package_release.py": "fba010cccc9843e7c22c17c7e375f3386d490868",
+    "scripts/package_release.py": "4bf03f5179afb235cac3a564bf983775898fefb3",
     "scripts/verify_history_bundle.py": "86a1f9894376d229bd784a3c42fae79f614baad3",
-    "scripts/verify_release.py": "b26cb62f60665a629afffc76c1c8f8650db28d3f"
+    "scripts/verify_release.py": "070c20b22523f6b730a2d955bc3d20ff7a024b84",
+    "scripts/verify_replay_logs.py": "cb396b67a292af36e6b2fbfaad427f4b9972bfb5"
   },
   "default_branch": "master",
   "expected_axioms": [
@@ -57,7 +57,8 @@
     "conditional_adapter_commit": "a060fc6d92d862a23e3cf65fc8789eb54c26d7df",
     "initial_manuscript_commit": "7a703cd0b43879aa052183407b292692a8118b28",
     "recovery_hardening_v1_2_commit": "f5b8e0519c9da589b284c4b511665636f5c4a427",
-    "recovery_hardening_v1_3_commit": "1f2666a7f34f8fed57295e49d4c236f06a22e7cc"
+    "recovery_hardening_v1_3_commit": "1f2666a7f34f8fed57295e49d4c236f06a22e7cc",
+    "recovery_hardening_v1_4_1_commit": "27c48960e8ae1b1ebfaafee4c210c26a1f2883e4"
   },
   "history_backup_outputs": [
     "rooted-tree-catalan-closure-v{version}-history.bundle",
@@ -69,8 +70,8 @@
     "manuscript_and_original_documentation": "CC-BY-4.0"
   },
   "name": "rooted-tree-catalan-closure",
-  "recovery_baseline_commit": "e50d83f5f2ebd2cce8d470f39dbeba5fa20f4ff6",
-  "recovery_generation": 4,
+  "recovery_baseline_commit": "27c48960e8ae1b1ebfaafee4c210c26a1f2883e4",
+  "recovery_generation": 5,
   "recovery_policy": {
     "git_history": "verified git bundle with ref inventory and SHA-256 checksums",
     "history_bundle_byte_reproducibility_claim": false,
@@ -88,11 +89,13 @@
     "archive_method": "ZIP_STORED",
     "cross_runtime_byte_determinism": true,
     "github_provenance_attestations": true,
-    "normalized_timestamp": "release_date at 00:00:00 UTC"
+    "normalized_timestamp": "release_date at 00:00:00 UTC",
+    "source_archive_self_audit": true
   },
   "repository": "https://github.com/lluiseriksson/rooted-tree-catalan-closure",
   "required_checks": [
     "make static",
+    "make actions-check",
     "make test",
     "make finite-check",
     "make package-determinism",
@@ -101,7 +104,7 @@
     "tooling matrix on Python 3.11, 3.12, and 3.13",
     "manual full Lean replay before replacing recorded Lean evidence"
   ],
-  "schema_version": 3,
+  "schema_version": 4,
   "status": "recovered_conditional_publication_artifact",
   "theorem_manifest": "archive/theorem-manifest.json",
   "title": "Rooted-tree summation and Catalan closure",
@@ -123,5 +126,5 @@
     "YangMills.RG.catalanClosure_fixedPoint",
     "YangMills.RG.appendixFHoleHsharpWeightedTreeMarkedRootSum_le_catalan_of_expWeight"
   ],
-  "version": "1.4.1"
+  "version": "1.5.0"
 }

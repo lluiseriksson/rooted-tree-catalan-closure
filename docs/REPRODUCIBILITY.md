@@ -10,8 +10,14 @@ make static
 
 This verifies pins, critical Git blobs, active Lean placeholder policy, exact oracle
 axiom sets, captured build evidence, theorem manifest, finite-evidence metadata, claim
-boundary, metadata alignment, workflows, local Markdown links, text normalization, and
-PDF structure.
+boundary, metadata alignment, semantically pinned workflow actions, local Markdown
+links, text normalization, and PDF structure.
+
+The workflow-specific policy can also be run directly:
+
+```sh
+make actions-check
+```
 
 ## Exact finite Catalan evidence
 
@@ -54,7 +60,10 @@ The source ZIP uses sorted `ZIP_STORED` entries, normalized timestamps, UTF-8 na
 normalized permissions. Avoiding Deflate removes zlib-version-dependent output. An
 internal `SOURCE-MANIFEST.sha256`, external checksum, SPDX 2.3 SBOM, theorem-manifest
 digest, finite-evidence digest, and release metadata are cross-checked against the
-working source tree by `scripts/verify_release.py`.
+working source tree by `scripts/verify_release.py`. The verifier then extracts the ZIP
+and executes `python scripts/check_repository.py` inside the extracted copy. This catches
+omissions that source-parity alone cannot detect, including missing archived Lean
+verification logs.
 
 ## Full Lean replay
 

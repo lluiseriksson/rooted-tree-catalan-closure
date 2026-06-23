@@ -3,6 +3,10 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
   "properties": {
+    "actions_policy": {
+      "const": "archive/github-actions-policy.json",
+      "type": "string"
+    },
     "claim_boundary": {
       "properties": {
         "closed_exact_catalan_identity": {
@@ -97,12 +101,36 @@
       "type": "array",
       "uniqueItems": true
     },
+    "release_policy": {
+      "properties": {
+        "archive_method": {
+          "const": "ZIP_STORED"
+        },
+        "cross_runtime_byte_determinism": {
+          "const": true
+        },
+        "github_provenance_attestations": {
+          "const": true
+        },
+        "source_archive_self_audit": {
+          "const": true
+        }
+      },
+      "required": [
+        "archive_method",
+        "cross_runtime_byte_determinism",
+        "github_provenance_attestations",
+        "normalized_timestamp",
+        "source_archive_self_audit"
+      ],
+      "type": "object"
+    },
     "repository": {
       "format": "uri",
       "type": "string"
     },
     "schema_version": {
-      "const": 3
+      "const": 4
     },
     "status": {
       "const": "recovered_conditional_publication_artifact"
@@ -174,7 +202,9 @@
     "history_backup_outputs",
     "claim_boundary",
     "recovery_policy",
-    "tooling_python_versions"
+    "tooling_python_versions",
+    "actions_policy",
+    "release_policy"
   ],
   "title": "Rooted-tree Catalan closure project metadata",
   "type": "object"

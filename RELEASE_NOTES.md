@@ -1,34 +1,37 @@
 # Release notes
 
-## v1.4.1 finite-evidence and replay hardening
+## v1.5.0 self-auditing source and workflow supply-chain hardening
 
-This release moves beyond archival hardening and adds an independent executable check of
-the central rooted-tree identity while preserving the formal claim boundary.
+This release fixes two maintenance gaps found after the successful v1.4.1 publication.
+The action-update pull requests changed only workflow dependencies, but the repository
+auditor treated entire workflow files as immutable scientific blobs. In addition, the
+source packager excluded all `.log` files, including the archived Lean build and oracle
+evidence required by the repository audit.
 
-It is rebased onto the CI-green `e50d83f` master state, preserves the immediate Makefile source assignment, and tests the standard-library tooling on Python 3.11–3.13.
+### Corrected
 
-### Added
+- Workflow safety is now checked semantically instead of by whole-file Git blob hashes.
+- Every external action is allowlisted, pinned to a full 40-character commit SHA, and
+  annotated with its reviewed major release line.
+- GitHub Actions dependencies are grouped into one monthly Dependabot update.
+- Dependency review retries snapshot warnings and blocks newly introduced high or
+  critical vulnerabilities.
+- The deterministic source ZIP includes the archived Lean build and oracle logs.
+- `scripts/verify_release.py` extracts the source ZIP and runs the repository audit from
+  that clean extracted tree.
 
-- Exact Prüfer-word checks through `n = 8`.
-- Independent direct spanning-tree checks through `n = 7`.
-- Exact occurrence-profile checks through `n = 8`.
-- Deterministic evidence JSON and theorem manifest.
-- A narrow Prüfer-profile Lean closure plan.
-- Verified bootstrap scripts for the immutable upstream patch.
-- Machine-readable full Lean replay reports.
+### Preserved
 
-### Release and CI improvements
+- Manuscript, PDF, Lean adapter, upstream pins, theorem statements, finite evidence, and
+  the explicit conditional proof boundary are unchanged.
+- `YangMills.KP.RootedChildFactorialCatalanIdentity n` remains open for arbitrary `n`.
 
-- Paper builds now write under `build/` and cannot silently replace the recovered PDF.
-- Source ZIPs use normalized `ZIP_STORED` entries, avoiding zlib-version-dependent bytes.
-- Release verification compares the archive, manifest, SBOM, metadata, finite evidence,
-  theorem manifest, and current source tree.
-- Tagged attestations are guarded so manual dry runs do not publish provenance records.
-- A complementary full-history Git bundle preserves commits and refs with checksums, a
-  machine-readable inventory, structural verification, and tag-release publication.
+### Recommended publication gate
 
-### Formal boundary preserved
-
-The exact finite computations do not close the general Lean theorem. The proposition
-`YangMills.KP.RootedChildFactorialCatalanIdentity n` remains explicitly open for arbitrary
-`n`; the downstream Lean adapter remains conditional on it.
+```sh
+make ci
+make package-determinism
+make verify-release
+make history-bundle
+make verify-history
+```

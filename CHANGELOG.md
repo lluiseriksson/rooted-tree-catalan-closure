@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.5.0 - 2026-06-23
+
+- Replaced brittle whole-workflow blob locks with semantic GitHub Actions policy checks.
+- Pinned every external action to a full commit SHA and upgraded checkout, setup-python,
+  and upload-artifact to their reviewed current major lines.
+- Grouped future GitHub Actions updates into one Dependabot pull request and made
+  high/critical dependency-review findings blocking.
+- Preserved archived Lean build and oracle logs inside the deterministic source ZIP.
+- Added extracted source-tree self-audit to release verification, closing a gap where a
+  package could match its manifest yet omit files required for standalone verification.
+- Added supply-chain documentation and regression tests for action pins and archived logs.
+
 ## 1.4.1 - 2026-06-23
 
 - Rebased the upgrade guard onto `e50d83f5f2ebd2cce8d470f39dbeba5fa20f4ff6`, preserving the successful CI source-pin fix.

@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from check_repository import git_blob_sha, parse_oracle_axioms, strip_lean_comments_and_strings
-from package_release import file_license, zip_info
+from package_release import ARCHIVED_EVIDENCE_LOGS, file_license, repository_files, zip_info
 
 
 class ArtifactToolTests(unittest.TestCase):
@@ -51,6 +51,11 @@ class ArtifactToolTests(unittest.TestCase):
         self.assertIn("TEX := main.tex\n", makefile)
         self.assertIn("TRACKED_PDF := Rooted_tree_Catalan_closure.pdf\n", makefile)
         self.assertNotIn("TEX ?=", makefile)
+
+
+    def test_source_package_keeps_archived_lean_logs(self) -> None:
+        selected = {path.relative_to(ROOT).as_posix() for path in repository_files(ROOT / "release")}
+        self.assertTrue(set(ARCHIVED_EVIDENCE_LOGS) <= selected)
 
     def test_file_license_policy(self) -> None:
         self.assertEqual(file_license("main.tex"), "CC-BY-4.0")

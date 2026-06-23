@@ -2,20 +2,20 @@
   "title": "Rooted-tree summation and Catalan closure for polymer cluster expansions with holes",
   "upload_type": "software",
   "publication_date": "2026-06-23",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "creators": [
     {
       "name": "Eriksson, Lluis"
     }
   ],
-  "description": "Recovered publication artifact with immutable provenance, exact finite Catalan evidence, and a checked conditional Lean 4 adapter.",
+  "description": "Recovered publication artifact with self-auditing source releases, SHA-pinned automation, immutable scientific provenance, exact finite Catalan evidence, and a checked conditional Lean 4 adapter.",
   "license": "AGPL-3.0-or-later",
   "keywords": [
     "Lean 4",
     "Catalan numbers",
     "rooted trees",
     "polymer cluster expansion",
-    "Pr\u00fcfer codes",
+    "Prüfer codes",
     "reproducible research"
   ],
   "access_right": "open"

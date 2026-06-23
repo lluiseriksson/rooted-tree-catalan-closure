@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "policy": "allowlisted_actions_pinned_to_full_commit_sha_with_reviewed_major_version",
+  "actions": {
+    "actions/attest-build-provenance": {
+      "major": 2,
+      "required": true
+    },
+    "actions/checkout": {
+      "major": 7,
+      "required": true
+    },
+    "actions/dependency-review-action": {
+      "major": 4,
+      "required": true
+    },
+    "actions/setup-python": {
+      "major": 6,
+      "required": true
+    },
+    "actions/upload-artifact": {
+      "major": 7,
+      "required": true
+    },
+    "leanprover/lean-action": {
+      "major": 1,
+      "required": true
+    }
+  },
+  "notes": [
+    "The full commit SHA is the executable pin; the vN comment records the reviewed release line.",
+    "Patch updates within an approved major may update workflow SHAs without changing immutable scientific blobs.",
+    "Major-version changes require an explicit policy update and review."
+  ]
+}
