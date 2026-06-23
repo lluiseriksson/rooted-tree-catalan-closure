@@ -1,10 +1,16 @@
-GNU AFFERO GENERAL PUBLIC LICENSE
-Version 3, 19 November 2007
+Repository licensing notice
+===========================
 
-This repository's Lean code, patch files, scripts, and automation are licensed under
-AGPL-3.0-or-later.
+Copyright (c) 2026 Lluis Eriksson.
 
-The full AGPL-3.0 text is available from the Free Software Foundation at:
+The Lean source under `lean-patch/`, Python tooling under `scripts/`, Makefile, and
+GitHub automation are licensed under the GNU Affero General Public License version 3 or
+(at your option) any later version (`AGPL-3.0-or-later`). The canonical license text is
+available from the Free Software Foundation:
+
 https://www.gnu.org/licenses/agpl-3.0.txt
 
-Original manuscript prose and figures are additionally documented in docs/LICENSE.md.
+The manuscript source `main.tex`, compiled manuscript
+`Rooted_tree_Catalan_closure.pdf`, and original documentation are licensed as stated in
+`docs/LICENSE.md`. Verification logs reproduce tool output and are distributed for
+artifact-audit purposes. Third-party dependencies retain their respective licenses.

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security or release-integrity report
+    url: https://github.com/lluiseriksson/rooted-tree-catalan-closure/security/advisories/new
+    about: Report sensitive provenance or integrity issues privately.

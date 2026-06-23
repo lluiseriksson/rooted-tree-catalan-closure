@@ -1,25 +1,22 @@
 # Claims boundary
 
-This repository is a recovered publication artifact for the rooted-tree Catalan closure
-argument and its Lean 4 adapter.
+## Certified and recovered
 
-## Certified in this repository
-
-- The paper source and compiled PDF are present.
-- The Lean patch states the exact Catalan replacement point as
+- Canonical manuscript source and compiled PDF are present and integrity-pinned.
+- The exact Lean replacement point is named by
   `YangMills.KP.RootedChildFactorialCatalanIdentity`.
-- The square-root Catalan closure theorem is checked in the recorded patch bundle.
-- The Appendix-F marked-root leaf summation adapter is checked conditionally on the
-  Catalan identity.
-- The oracle log records only `[propext, Classical.choice, Quot.sound]` for the listed
-  conditional adapter declarations.
+- The square-root closure and its nonnegativity theorem are checked in Lean.
+- The marked-root Appendix-F adapter is checked conditional on the exact Catalan identity.
+- Captured oracle reports contain only `[propext, Classical.choice, Quot.sound]`.
+- The mailbox patch is automatically checked against the immutable upstream base.
+- Release archives are deterministic, checksummed, SBOM-described, and independently verified.
 
 ## Not certified here
 
-- A closed proof of `RootedChildFactorialCatalanIdentity n` for every `n`.
-- A proof of the model-specific raw Yang--Mills activity estimate.
-- A continuum limit, Osterwalder--Schrader reconstruction, or Yang--Mills mass gap.
-- A claim that the conditional patch has been merged into the upstream project.
+- A general Lean proof of `RootedChildFactorialCatalanIdentity n` for every `n`.
+- The model-specific raw Yang–Mills activity estimate.
+- A continuum construction, Osterwalder–Schrader reconstruction, or mass gap.
+- Merger of the conditional patch into the upstream project.
 
-This boundary is intentional: it prevents the repository from overstating the present
-formal status while keeping the downstream adapter reproducible and reviewable.
+Operational recovery completeness must not be confused with completion of the remaining
+formal theorem obligation.

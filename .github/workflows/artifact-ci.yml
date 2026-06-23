@@ -1,0 +1,102 @@
+name: artifact-ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: artifact-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  static-and-package:
+    name: Static integrity and deterministic release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Audit recovered artifact
+        run: make static
+      - name: Prove package determinism
+        run: make package-determinism
+      - name: Build and verify release outputs
+        run: make verify-release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rooted-tree-catalan-closure-release
+          path: release/*
+          if-no-files-found: error
+          retention-days: 30
+
+  patch-application:
+    name: Patch applies to immutable upstream base
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out recovered artifact
+        uses: actions/checkout@v4
+        with:
+          path: artifact
+          persist-credentials: false
+      - name: Check out exact upstream base
+        uses: actions/checkout@v4
+        with:
+          repository: lluiseriksson/THE-ERIKSSON-PROGRAMME
+          ref: 1d044a353ac2b69ddca732dd851fb0ab4a94d7af
+          path: upstream
+          persist-credentials: false
+      - name: Check and apply mailbox patch
+        working-directory: upstream
+        run: |
+          git apply --check ../artifact/lean-patch/catalan-conditional-adapter.patch
+          git apply ../artifact/lean-patch/catalan-conditional-adapter.patch
+          git diff --check
+      - name: Compare recovered adapter sources
+        run: |
+          cmp upstream/YangMills/KP/RootedCatalan.lean artifact/lean-patch/YangMills/KP/RootedCatalan.lean
+          cmp upstream/YangMills/RG/AppendixFHsharpCatalanClosure.lean artifact/lean-patch/YangMills/RG/AppendixFHsharpCatalanClosure.lean
+          cmp upstream/YangMills/RG/AppendixFHsharpCatalanSource.lean artifact/lean-patch/YangMills/RG/AppendixFHsharpCatalanSource.lean
+          cmp upstream/oracle_check_catalan.lean artifact/lean-patch/oracle_check_catalan.lean
+
+  paper:
+    name: Rebuild and inspect manuscript PDF
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install TeX and PDF inspection tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            texlive-latex-base texlive-latex-extra texlive-fonts-recommended \
+            texlive-science poppler-utils lmodern
+      - name: Build paper
+        run: make paper
+      - name: Inspect rebuilt PDF
+        run: |
+          python scripts/check_repository.py --accept-rebuilt-pdf
+          pdfinfo Rooted_tree_Catalan_closure.pdf
+          pdftotext Rooted_tree_Catalan_closure.pdf - | grep -F 'Rooted-tree summation and Catalan closure'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rebuilt-manuscript
+          path: Rooted_tree_Catalan_closure.pdf
+          if-no-files-found: error
+          retention-days: 30

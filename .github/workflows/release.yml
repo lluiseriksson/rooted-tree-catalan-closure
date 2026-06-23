@@ -1,0 +1,49 @@
+name: tagged-release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install TeX
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            texlive-latex-base texlive-latex-extra texlive-fonts-recommended texlive-science lmodern
+      - name: Verify tag matches project version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          python - <<'PY'
+          import json, os
+          version = json.load(open('project.json', encoding='utf-8'))['version']
+          tag = os.environ['GITHUB_REF_NAME']
+          if tag != f'v{version}':
+              raise SystemExit(f'tag {tag!r} does not match v{version}')
+          PY
+      - name: Complete publication gate
+        run: make release
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" release/* --verify-tag --generate-notes
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tagged-release-files
+          path: release/*
+          if-no-files-found: error

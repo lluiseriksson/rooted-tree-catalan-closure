@@ -1,32 +1,40 @@
 # Reproducibility
 
-## Paper
+## Static repository verification
+
+Requirements: Python 3.11 or newer and Git.
 
 ```sh
-make paper
+make static
 ```
 
-or, when Tectonic is installed:
+This verifies pins, critical Git blobs, Lean placeholder policy, exact oracle axiom
+sets, build evidence, claim boundary, metadata, workflows, text normalization, and PDF
+structure.
+
+## Manuscript
+
+With a TeX distribution:
 
 ```sh
-make tectonic
+make verify
 ```
 
-## Static artifact audit
+The audit accepts a rebuilt PDF structurally because TeX/PDF metadata can prevent a
+byte-identical rebuild. The canonical tracked PDF remains protected by its Git blob ID.
+
+## Deterministic release
 
 ```sh
-make audit
+make package-determinism
+make verify-release
 ```
 
-The audit checks for required files, confirms that the Lean adapter remains explicitly
-conditional, verifies the oracle log boundary, and guards against accidental claims that
-the exact Catalan identity or mass-gap-level conclusions have already been proved.
+The release ZIP uses normalized timestamps, path order, UTF-8 names, and permissions. An
+internal `SOURCE-MANIFEST.sha256`, external checksum, SPDX 2.3 SBOM, and release metadata
+are cross-checked by `scripts/verify_release.py`.
 
-## Source package
+## Full Lean replay
 
-```sh
-make package
-```
-
-This creates `release/rooted-tree-catalan-closure-source.zip` and a matching SHA-256
-file from a deterministic file list.
+Dispatch `.github/workflows/full-lean-replay.yml` or follow the pinned commands in the
+README. This is the authoritative clean-kernel replay for the checked conditional adapter.

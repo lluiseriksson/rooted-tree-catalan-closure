@@ -1,34 +1,36 @@
 # Lean 4 patch manifest
 
-This manifest is a specification and recovery record for the narrow Catalan patch.  It
-is not a claim that the remaining exact Catalan bijection has been fully proved.  The
-checked part of the artifact is the downstream adapter that takes the Catalan identity
-as an explicit hypothesis.
+This manifest records the implemented, checked conditional adapter and separates it
+from future theorem targets. It does not claim that the remaining exact Catalan
+bijection has been formalized.
 
-## Base snapshot
+## Pinned environment
 
-- Repository: `lluiseriksson/THE-ERIKSSON-PROGRAMME`
-- Base commit inspected: `1d044a353ac2b69ddca732dd851fb0ab4a94d7af`
+- Upstream repository: `lluiseriksson/THE-ERIKSSON-PROGRAMME`
+- Base commit: `1d044a353ac2b69ddca732dd851fb0ab4a94d7af`
+- Checked adapter commit: `d668c333db302f9f399374e3c824805a1c4d71da`
 - Lean: `leanprover/lean4:v4.29.0-rc6`
-- mathlib: `07642720480157414db592fa85b626dafb71355b`
+- Mathlib: `07642720480157414db592fa85b626dafb71355b`
 
-## Proposed/adapter modules
+## Recovered adapter modules
 
 1. `YangMills/KP/RootedCatalan.lean`
 2. `YangMills/RG/AppendixFHsharpCatalanClosure.lean`
 3. `YangMills/RG/AppendixFHsharpCatalanSource.lean`
+4. `oracle_check_catalan.lean`
 
-The corresponding repository-local copies are stored under `lean-patch/`, together
-with `lean-patch/catalan-conditional-adapter.patch`.
+Repository-local copies are under `lean-patch/`; the mailbox patch is
+`lean-patch/catalan-conditional-adapter.patch`.
 
-## Verified declarations recorded by the recovery bundle
+## Checked declarations
 
 - `YangMills.KP.rootedChildCount_factorialTreeSum_normalized_le_catalan_of_identity`
 - `YangMills.RG.catalanClosure_fixedPoint`
+- `YangMills.RG.catalanClosure_nonneg`
 - `YangMills.RG.appendixFHoleHsharpWeightedTreeMarkedRootSum_le_catalan_of_expWeight`
 
-`lean-patch/verification/oracle_check_catalan.log` records only
-`[propext, Classical.choice, Quot.sound]` for those declarations.
+The archived oracle output reports exactly `[propext, Classical.choice, Quot.sound]` for
+the listed oracle endpoints.
 
 ## Explicit remaining obligation
 
@@ -36,20 +38,18 @@ with `lean-patch/catalan-conditional-adapter.patch`.
 YangMills.KP.RootedChildFactorialCatalanIdentity n
 ```
 
-must still be proved for every `n` before the artifact can be described as a closed
-formal proof of the exact rooted child-factorial Catalan identity.
+must be proved for every `n` before this can be described as a closed Lean proof of the
+exact rooted child-factorial Catalan identity.
 
-## Required checks for a closed archival patch
+## Closed-artifact replay gate
 
 ```sh
 lake exe cache get
-lake env lean YangMills/KP/RootedCatalan.lean
-lake env lean YangMills/RG/AppendixFHsharpCatalanClosure.lean
-lake env lean YangMills/RG/AppendixFHsharpCatalanSource.lean
 lake build YangMillsCore
-lake env lean oracle_check.lean
+lake build YangMills.KP.RootedCatalan YangMills.RG.AppendixFHsharpCatalanClosure
+lake build YangMills.RG.AppendixFHsharpCatalanSource
+lake env lean oracle_check_catalan.lean
 python scripts/check_consistency.py
 ```
 
-Every closed theorem should report only `[propext, Classical.choice, Quot.sound]`,
-with no `sorryAx` and no project-specific axioms.
+Every closed theorem must remain free of `sorryAx` and project-local axioms.

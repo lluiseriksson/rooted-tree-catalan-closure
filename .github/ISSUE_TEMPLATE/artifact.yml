@@ -1,0 +1,26 @@
+name: Artifact or reproducibility issue
+description: Report a build, package, provenance, or documentation problem.
+title: "[artifact] "
+labels: [artifact]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the observed behavior and affected file or command.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Include commands, platform, commit, and relevant hashes.
+    validations:
+      required: true
+  - type: checkboxes
+    id: boundary
+    attributes:
+      label: Claim boundary
+      options:
+        - label: I have not interpreted the conditional adapter as a closed proof.
+          required: true

@@ -2,6 +2,8 @@
 *.pdf binary
 *.png binary
 *.zip binary
+*.spdx.json text eol=lf
 /release export-ignore
 /build export-ignore
 /.git export-ignore
+/.github export-ignore

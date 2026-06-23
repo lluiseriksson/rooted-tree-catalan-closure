@@ -1,0 +1,64 @@
+name: Manual full Lean replay
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: full-lean-replay-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  replay:
+    name: Replay conditional adapter in pinned upstream
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check out recovered artifact
+        uses: actions/checkout@v4
+        with:
+          path: artifact
+          persist-credentials: false
+      - name: Check out exact upstream base
+        uses: actions/checkout@v4
+        with:
+          repository: lluiseriksson/THE-ERIKSSON-PROGRAMME
+          ref: 1d044a353ac2b69ddca732dd851fb0ab4a94d7af
+          path: upstream
+          persist-credentials: false
+      - name: Apply recovered mailbox patch
+        working-directory: upstream
+        run: |
+          git apply --check ../artifact/lean-patch/catalan-conditional-adapter.patch
+          git apply ../artifact/lean-patch/catalan-conditional-adapter.patch
+          git diff --check
+      - name: Install pinned Lean and restore caches
+        uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: upstream
+          auto-config: false
+          use-mathlib-cache: true
+          use-github-cache: true
+      - name: Build project and adapter
+        working-directory: upstream
+        run: |
+          lake build YangMillsCore 2>&1 | tee ../artifact/replay-build.log
+          lake build YangMills.KP.RootedCatalan YangMills.RG.AppendixFHsharpCatalanClosure 2>&1 | tee -a ../artifact/replay-build.log
+          lake build YangMills.RG.AppendixFHsharpCatalanSource 2>&1 | tee -a ../artifact/replay-build.log
+      - name: Inspect theorem axioms
+        working-directory: upstream
+        run: |
+          lake env lean oracle_check_catalan.lean 2>&1 | tee ../artifact/replay-oracle.log
+          ! grep -F 'sorryAx' ../artifact/replay-oracle.log
+          grep -F 'Classical.choice' ../artifact/replay-oracle.log
+          grep -F 'Quot.sound' ../artifact/replay-oracle.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: full-lean-replay-logs
+          path: |
+            artifact/replay-build.log
+            artifact/replay-oracle.log
+          if-no-files-found: error
+          retention-days: 30
