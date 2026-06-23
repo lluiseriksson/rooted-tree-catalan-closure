@@ -24,12 +24,12 @@ jobs:
     timeout-minutes: 120
     steps:
       - name: Check out recovered artifact
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: artifact
           persist-credentials: false
       - name: Check out exact upstream base
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: lluiseriksson/THE-ERIKSSON-PROGRAMME
           ref: 1d044a353ac2b69ddca732dd851fb0ab4a94d7af

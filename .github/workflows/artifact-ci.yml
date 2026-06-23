@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -59,7 +59,7 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -79,12 +79,12 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Check out recovered artifact
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: artifact
           persist-credentials: false
       - name: Check out exact upstream base
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: lluiseriksson/THE-ERIKSSON-PROGRAMME
           ref: 1d044a353ac2b69ddca732dd851fb0ab4a94d7af
@@ -114,7 +114,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/setup-python@v5
