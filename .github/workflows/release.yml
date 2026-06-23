@@ -39,9 +39,9 @@ jobs:
           python - <<'PY'
           import os
           from pathlib import Path
-          from strict_json import load
+          from strict_json import load_canonical
 
-          version = load(Path('project.json'))['version']
+          version = load_canonical(Path('project.json'))['version']
           tag = os.environ['GITHUB_REF_NAME']
           if tag != f'v{version}':
               raise SystemExit(f'tag {tag!r} does not match v{version}')

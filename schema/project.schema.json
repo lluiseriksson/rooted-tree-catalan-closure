@@ -70,8 +70,78 @@
       "uniqueItems": true
     },
     "history_inventory_schema": {
-      "const": 2,
+      "const": 3,
       "type": "integer"
+    },
+    "manuscript_pdf": {
+      "additionalProperties": false,
+      "properties": {
+        "active_content": {
+          "const": false
+        },
+        "author": {
+          "const": "Lluis Eriksson"
+        },
+        "embedded_files": {
+          "const": false
+        },
+        "encrypted": {
+          "const": false
+        },
+        "file": {
+          "const": "Rooted_tree_Catalan_closure.pdf"
+        },
+        "forms": {
+          "const": false
+        },
+        "incremental_updates": {
+          "const": false
+        },
+        "javascript": {
+          "const": false
+        },
+        "page_size": {
+          "const": "A4"
+        },
+        "pages": {
+          "const": 17,
+          "type": "integer"
+        },
+        "pdf_version": {
+          "const": "1.5"
+        },
+        "rebuild_pdf_versions": {
+          "items": {
+            "enum": [
+              "1.5",
+              "1.7"
+            ]
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "title": {
+          "const": "Rooted-tree summation and Catalan closure for polymer cluster expansions with holes"
+        }
+      },
+      "required": [
+        "active_content",
+        "author",
+        "embedded_files",
+        "encrypted",
+        "file",
+        "forms",
+        "incremental_updates",
+        "javascript",
+        "page_size",
+        "pages",
+        "pdf_version",
+        "rebuild_pdf_versions",
+        "title"
+      ],
+      "type": "object"
     },
     "name": {
       "const": "rooted-tree-catalan-closure"
@@ -113,6 +183,12 @@
         "archive_resource_limits": {
           "const": true
         },
+        "canonical_json_encoding": {
+          "const": true
+        },
+        "canonical_zip_utf8_flags": {
+          "const": true
+        },
         "clean_git_worktree_required": {
           "const": true
         },
@@ -125,7 +201,13 @@
         "github_provenance_attestations": {
           "const": true
         },
+        "history_bundle_deep_fsck": {
+          "const": true
+        },
         "history_bundle_exact_head_inventory": {
+          "const": true
+        },
+        "history_release_tag_binding": {
           "const": true
         },
         "host_extracted_modes_authoritative": {
@@ -134,7 +216,13 @@
         "non_destructive_powershell_build": {
           "const": true
         },
+        "passive_single_revision_pdf": {
+          "const": true
+        },
         "portable_archive_paths": {
+          "const": true
+        },
+        "producer_source_zip_self_verification": {
           "const": true
         },
         "release_output_exact_inventory": {
@@ -160,20 +248,29 @@
         },
         "tracked_git_files_only": {
           "const": true
+        },
+        "zip_regular_file_type_bits": {
+          "const": true
         }
       },
       "required": [
         "archive_method",
         "archive_resource_limits",
+        "canonical_json_encoding",
+        "canonical_zip_utf8_flags",
         "clean_git_worktree_required",
         "complete_release_checksums",
         "cross_runtime_byte_determinism",
         "github_provenance_attestations",
+        "history_bundle_deep_fsck",
         "history_bundle_exact_head_inventory",
+        "history_release_tag_binding",
         "host_extracted_modes_authoritative",
         "non_destructive_powershell_build",
         "normalized_timestamp",
+        "passive_single_revision_pdf",
         "portable_archive_paths",
+        "producer_source_zip_self_verification",
         "release_output_exact_inventory",
         "source_archive_repackaging",
         "source_archive_self_audit",
@@ -181,7 +278,8 @@
         "spdx_2_3_conformant_checksums",
         "standalone_source_zip_verifier",
         "strict_json_metadata",
-        "tracked_git_files_only"
+        "tracked_git_files_only",
+        "zip_regular_file_type_bits"
       ],
       "type": "object"
     },
@@ -190,7 +288,7 @@
       "type": "string"
     },
     "schema_version": {
-      "const": 5
+      "const": 6
     },
     "status": {
       "const": "recovered_conditional_publication_artifact"
@@ -252,6 +350,7 @@
     "finite_evidence",
     "history_backup_outputs",
     "history_inventory_schema",
+    "manuscript_pdf",
     "name",
     "recovery_policy",
     "release_date",

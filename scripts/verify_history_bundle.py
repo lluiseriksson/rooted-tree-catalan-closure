@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify a Git history bundle, exact head inventory, and SHA-256 sidecars."""
+"""Verify history checksums, bundle heads, deep restoration, refs, tag, and objects."""
 
 from __future__ import annotations
 
@@ -10,9 +10,20 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from create_history_bundle import OID_RE, TEMP_REF, parse_bundle_heads
-from release_integrity import IntegrityError, portable_path_key, sha256_file, validate_portable_relative_path
-from strict_json import StrictJSONError, load as load_json
+from history_integrity import (
+    TEMP_REF,
+    HistoryIntegrityError,
+    deep_verify_bundle,
+    parse_bundle_heads,
+    validate_oid,
+)
+from release_integrity import (
+    IntegrityError,
+    portable_path_key,
+    sha256_file,
+    validate_portable_relative_path,
+)
+from strict_json import StrictJSONError, load_canonical as load_json
 
 DEFAULT_ROOT = Path(__file__).resolve().parents[1]
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -43,7 +54,9 @@ def parse_sums(text: str) -> dict[str, str]:
             raise IntegrityError(f"duplicate checksum entry: {name}")
         key = portable_path_key(name)
         if key in folded:
-            raise IntegrityError(f"case-insensitive checksum collision: {folded[key]!r} and {name!r}")
+            raise IntegrityError(
+                f"case-insensitive checksum collision: {folded[key]!r} and {name!r}"
+            )
         records[name] = digest
         folded[key] = name
     if list(records) != sorted(records):
@@ -51,7 +64,9 @@ def parse_sums(text: str) -> dict[str, str]:
     return records
 
 
-def validate_inventory_heads(payload: dict[str, Any]) -> list[dict[str, str]]:
+def validate_inventory_heads(
+    payload: dict[str, Any], object_format: str
+) -> list[dict[str, str]]:
     raw_heads = payload.get("bundle_heads")
     if not isinstance(raw_heads, list) or not raw_heads:
         raise IntegrityError("history inventory contains no bundle_heads")
@@ -62,8 +77,12 @@ def validate_inventory_heads(payload: dict[str, Any]) -> list[dict[str, str]]:
             raise IntegrityError(f"bundle head {index} must contain exactly oid and ref")
         oid = entry.get("oid")
         ref = entry.get("ref")
-        if not isinstance(oid, str) or OID_RE.fullmatch(oid) is None:
-            raise IntegrityError(f"bundle head {index} has an invalid object id")
+        if not isinstance(oid, str):
+            raise IntegrityError(f"bundle head {index} has a non-string object id")
+        try:
+            validate_oid(oid, object_format, label=f"bundle head {index}")
+        except HistoryIntegrityError as exc:
+            raise IntegrityError(str(exc)) from exc
         if not isinstance(ref, str) or not ref or ref in seen:
             raise IntegrityError(f"bundle head {index} has a duplicate or empty ref")
         if ref != "HEAD" and not ref.startswith("refs/"):
@@ -73,6 +92,23 @@ def validate_inventory_heads(payload: dict[str, Any]) -> list[dict[str, str]]:
     if heads != sorted(heads, key=lambda item: item["ref"]):
         raise IntegrityError("bundle_heads are not in canonical ref order")
     return heads
+
+
+def validate_history_output_directory(directory: Path, expected_names: set[str]) -> None:
+    """Require the exact three regular, non-symbolic-link history outputs."""
+    if directory.is_symlink() or not directory.is_dir():
+        raise IntegrityError(f"history release directory is missing or irregular: {directory}")
+    entries = list(directory.iterdir())
+    irregular = sorted(path.name for path in entries if path.is_symlink() or not path.is_file())
+    if irregular:
+        raise IntegrityError(f"history directory contains non-regular entries: {irregular}")
+    actual = {path.name for path in entries}
+    if actual != expected_names:
+        missing = sorted(expected_names - actual)
+        extra = sorted(actual - expected_names)
+        raise IntegrityError(
+            f"history output inventory mismatch; missing={missing}, extra={extra}"
+        )
 
 
 def main() -> int:
@@ -89,16 +125,23 @@ def main() -> int:
         return fail(str(exc))
     if not isinstance(project, dict):
         return fail(f"{project_path} must contain a JSON object")
-    prefix = f"rooted-tree-catalan-closure-v{project['version']}"
+    version = project.get("version")
+    if not isinstance(version, str):
+        return fail("project.json version must be a string")
+    prefix = f"rooted-tree-catalan-closure-v{version}"
     directory = Path(args.release_dir)
     if not directory.is_absolute():
         directory = root / directory
+    directory = directory.resolve()
     bundle = directory / f"{prefix}-history.bundle"
     inventory = directory / f"{prefix}.history.json"
     sums = directory / f"{prefix}.history.SHA256SUMS"
-    for path in (bundle, inventory, sums):
-        if not path.is_file():
-            return fail(f"missing history artifact: {path}")
+    try:
+        validate_history_output_directory(
+            directory, {bundle.name, inventory.name, sums.name}
+        )
+    except IntegrityError as exc:
+        return fail(str(exc))
 
     try:
         expected = parse_sums(sums.read_text(encoding="utf-8"))
@@ -116,23 +159,31 @@ def main() -> int:
         return fail(str(exc))
     if not isinstance(payload, dict):
         return fail("history inventory must contain a JSON object")
-    if payload.get("schema_version") != 2:
+    if payload.get("schema_version") != 3:
         return fail("unsupported history inventory schema")
     if payload.get("status") != "verified_history_backup_no_byte_reproducibility_claim":
         return fail("history inventory status overclaims reproducibility")
-    if payload.get("repository") != project["repository"]:
+    if payload.get("repository") != project.get("repository"):
         return fail("history inventory repository does not match project.json")
-    if payload.get("version") != project["version"]:
+    if payload.get("version") != version:
         return fail("history inventory version does not match project.json")
     if payload.get("bundle") != bundle.name or payload.get("bundle_sha256") != sha256_file(bundle):
         return fail("history inventory does not match bundle")
+
+    object_format = payload.get("object_format")
+    if object_format not in {"sha1", "sha256"}:
+        return fail("history inventory has an unsupported Git object format")
     head_commit = payload.get("head_commit")
-    if not isinstance(head_commit, str) or OID_RE.fullmatch(head_commit) is None:
-        return fail("history inventory has an invalid head_commit")
+    if not isinstance(head_commit, str):
+        return fail("history inventory has a non-string head_commit")
+    try:
+        validate_oid(head_commit, object_format, label="head_commit")
+    except HistoryIntegrityError as exc:
+        return fail(str(exc))
     if payload.get("temporary_recovery_ref") != TEMP_REF:
         return fail("history inventory temporary recovery ref drift")
     try:
-        recorded_heads = validate_inventory_heads(payload)
+        recorded_heads = validate_inventory_heads(payload, object_format)
     except IntegrityError as exc:
         return fail(str(exc))
     recorded_map = {entry["ref"]: entry["oid"] for entry in recorded_heads}
@@ -146,6 +197,24 @@ def main() -> int:
             return fail("history inventory has an invalid head_ref")
         if recorded_map.get(head_ref) != head_commit:
             return fail("history inventory head_ref does not identify head_commit")
+
+    expected_tag = f"refs/tags/v{version}"
+    if payload.get("release_tag") != expected_tag:
+        return fail("history inventory release-tag name drift")
+    if payload.get("release_tag_object") != recorded_map.get(expected_tag):
+        return fail("history inventory release-tag object drift")
+    if payload.get("release_tag_commit") != head_commit:
+        return fail("history inventory release tag is not bound to head_commit")
+    if payload.get("release_tag_annotated") is not True:
+        return fail("history inventory does not require an annotated release tag")
+    restoration_meta = payload.get("restoration_verification")
+    if not isinstance(restoration_meta, dict) or restoration_meta != {
+        "exact_refs": True,
+        "git_fsck_full_strict": True,
+        "mirror_clone": True,
+        "restored_ref_count": len(recorded_heads) - 1,
+    }:
+        return fail("history restoration-verification metadata drift")
 
     try:
         completed = subprocess.run(
@@ -169,15 +238,29 @@ def main() -> int:
     if listed.returncode != 0:
         return fail(f"git bundle list-heads failed:\n{listed.stdout}{listed.stderr}")
     try:
-        actual_heads = parse_bundle_heads(listed.stdout)
-    except ValueError as exc:
+        actual_heads = parse_bundle_heads(listed.stdout, object_format)
+    except HistoryIntegrityError as exc:
         return fail(str(exc))
     if actual_heads != recorded_heads:
         return fail("history inventory does not exactly match git bundle list-heads")
 
+    try:
+        report = deep_verify_bundle(
+            bundle,
+            recorded_heads,
+            head_commit=head_commit,
+            object_format=object_format,
+            version=version,
+        )
+    except HistoryIntegrityError as exc:
+        return fail(str(exc))
+    if report.release_tag_object != payload.get("release_tag_object"):
+        return fail("restored release-tag object does not match history inventory")
+
     print(
         f"history bundle verification passed: head={head_commit}, "
-        f"heads={len(recorded_heads)}, sha256={payload['bundle_sha256']}"
+        f"refs={report.restored_ref_count}, tag={report.release_tag}, "
+        f"object_format={object_format}, fsck=strict, sha256={payload['bundle_sha256']}"
     )
     return 0
 

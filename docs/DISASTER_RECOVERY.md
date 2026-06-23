@@ -6,8 +6,9 @@ The project now supports two complementary recovery artifacts:
 2. a Git bundle, which restores commit history and refs.
 
 The source ZIP is byte-reproducible for a fixed source tree. A Git bundle is verified by
-checksum, `git bundle verify`, and exact `git bundle list-heads` parity, but is not claimed to be byte-identical across Git
-versions.
+checksum, `git bundle verify`, exact `git bundle list-heads` parity, isolated mirror
+restoration, `git fsck --full --strict`, exact restored refs, and annotated release-tag
+binding. It is not claimed to be byte-identical across Git versions.
 
 ## Create recovery artifacts
 
@@ -24,17 +25,19 @@ Generated files are placed in `release/` and `history-release/`.
 ## Restore from the source ZIP
 
 ```sh
-sha256sum -c rooted-tree-catalan-closure-v1.7.0.SHA256SUMS
-unzip rooted-tree-catalan-closure-v1.7.0.zip
-cd rooted-tree-catalan-closure-v1.7.0
-python3 scripts/verify_source_zip.py /path/to/release-files/rooted-tree-catalan-closure-v1.7.0.zip \
-  --checksum /path/to/release-files/rooted-tree-catalan-closure-v1.7.0.zip.sha256
+sha256sum -c rooted-tree-catalan-closure-v1.8.0.SHA256SUMS
+unzip rooted-tree-catalan-closure-v1.8.0.zip
+cd rooted-tree-catalan-closure-v1.8.0
+python3 scripts/verify_source_zip.py /path/to/release-files/rooted-tree-catalan-closure-v1.8.0.zip \
+  --checksum /path/to/release-files/rooted-tree-catalan-closure-v1.8.0.zip.sha256
 python3 scripts/verify_release.py --release-dir /path/to/release-files
 python3 scripts/check_repository.py
 ```
 
 The ZIP includes `SOURCE-MANIFEST.sha256`, the archived Lean build/oracle logs, and all
-tooling needed for a standalone audit. Its external `.zip.sha256`, SPDX SBOM, release
+tooling needed for a standalone audit. ZIP entries use canonical Unix regular-file type and
+permission bits, and all integrity JSON uses the canonical repository encoding. Its external
+`.zip.sha256`, SPDX SBOM, release
 metadata, and complete `SHA256SUMS` must agree with the internal inventory.
 `scripts/verify_release.py`
 extracts the archive and runs the repository audit from that clean tree.
@@ -44,11 +47,14 @@ extracts the archive and runs the repository audit from that clean tree.
 Keep the `.bundle`, `.history.json`, and `.history.SHA256SUMS` files together.
 
 ```sh
-sha256sum -c rooted-tree-catalan-closure-v1.7.0.history.SHA256SUMS
-git bundle verify rooted-tree-catalan-closure-v1.7.0-history.bundle
-git clone rooted-tree-catalan-closure-v1.7.0-history.bundle rooted-tree-catalan-closure
+sha256sum -c rooted-tree-catalan-closure-v1.8.0.history.SHA256SUMS
+git bundle verify rooted-tree-catalan-closure-v1.8.0-history.bundle
+git clone rooted-tree-catalan-closure-v1.8.0-history.bundle rooted-tree-catalan-closure
 cd rooted-tree-catalan-closure
 git checkout <head_commit from the history JSON>
+git fsck --full --strict
+git cat-file -t refs/tags/v1.8.0   # must print: tag
+git rev-parse refs/tags/v1.8.0^{commit}  # must equal head_commit
 ```
 
 After restoration, configure a new remote and push all retained refs:

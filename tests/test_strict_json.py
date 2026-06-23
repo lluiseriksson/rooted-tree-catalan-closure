@@ -7,7 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from strict_json import StrictJSONError, loads
+from strict_json import StrictJSONError, canonical_dumps, loads, loads_canonical
 
 
 class StrictJSONTests(unittest.TestCase):
@@ -32,6 +32,30 @@ class StrictJSONTests(unittest.TestCase):
         ):
             with self.subTest(token=token), self.assertRaises(StrictJSONError):
                 loads(f'{{"value": {token}}}', source="nonfinite.json")
+
+
+    def test_canonical_json_requires_sorted_stable_bytes(self) -> None:
+        value = {"z": 1, "a": {"text": "Prüfer"}}
+        canonical = canonical_dumps(value)
+        self.assertEqual(
+            canonical,
+            "{\n"
+            "  \"a\": {\n"
+            "    \"text\": \"Pr\\u00fcfer\"\n"
+            "  },\n"
+            "  \"z\": 1\n"
+            "}\n",
+        )
+        self.assertEqual(loads_canonical(canonical, source="canonical.json"), value)
+        for noncanonical in (
+            '{"a": 1}\n',
+            '{\n  "z": 1,\n  "a": 2\n}\n',
+            '{\n  "a": 1\n}\n\n',
+        ):
+            with self.subTest(noncanonical=noncanonical), self.assertRaisesRegex(
+                StrictJSONError, "noncanonical JSON"
+            ):
+                loads_canonical(noncanonical, source="drift.json")
 
     def test_finite_decimal_numbers_are_preserved(self) -> None:
         self.assertEqual(loads('{"value": 1.25}'), {"value": 1.25})

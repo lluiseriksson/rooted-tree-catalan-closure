@@ -17,7 +17,7 @@ from release_integrity import (
     validate_archive_resource_limits,
     validate_zip_info,
 )
-from strict_json import load as load_json
+from strict_json import load_canonical as load_json
 
 ROOT = Path(__file__).resolve().parents[1]
 

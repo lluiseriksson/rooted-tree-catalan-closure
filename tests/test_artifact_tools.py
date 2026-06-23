@@ -52,7 +52,10 @@ class ArtifactToolTests(unittest.TestCase):
         info = zip_info("artifact/example.py", (2026, 6, 23, 0, 0, 0), executable=True)
         self.assertEqual(info.compress_type, zipfile.ZIP_STORED)
         self.assertEqual(info.create_system, 3)
-        self.assertEqual(stat.S_IMODE(info.external_attr >> 16), 0o755)
+        raw_mode = info.external_attr >> 16
+        self.assertTrue(stat.S_ISREG(raw_mode))
+        self.assertEqual(stat.S_IMODE(raw_mode), 0o755)
+        self.assertEqual(info.flag_bits, 0)
         self.assertEqual(info.date_time, (2026, 6, 23, 0, 0, 0))
 
     def test_portable_executable_mode_ignores_host_permissions(self) -> None:
@@ -104,6 +107,9 @@ class ArtifactToolTests(unittest.TestCase):
     def test_powershell_paper_build_is_non_destructive_by_default(self) -> None:
         script = (ROOT / "build.ps1").read_text(encoding="utf-8")
         self.assertIn("[switch]$RefreshTrackedPdf", script)
+        self.assertIn("[switch]$RequirePdfTools", script)
+        self.assertIn("--require-tools", script)
+        self.assertIn("--rebuilt", script)
         self.assertIn("if ($RefreshTrackedPdf)", script)
         self.assertIn("$builtPdf", script)
         self.assertIn("scripts/check_pdf.py", script)

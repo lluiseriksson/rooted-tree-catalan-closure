@@ -19,14 +19,14 @@ help:
 	  'make finite-refresh      - intentionally regenerate tracked finite evidence' \
 	  'make paper               - rebuild manuscript into build/ without changing tracked PDF' \
 	  'make paper-refresh       - intentionally replace tracked PDF with rebuilt PDF' \
-	  'make paper-check         - rebuild and inspect the build PDF' \
+	  'make paper-check         - rebuild and deeply inspect the passive build PDF' \
 	  'make package             - deterministic ZIP, full SHA256SUMS, SPDX SBOM, and metadata' \
 	  'make package-determinism - build the release twice and compare every output byte' \
 	  'make package-repackaging - reproduce release bytes from its extracted source ZIP' \
 	  'make verify-source-zip   - verify ZIP bytes/modes without trusting extracted permissions' \
 	  'make verify-release      - independently validate all release outputs' \
-	  'make history-bundle      - preserve complete Git history and refs in a verified bundle' \
-	  'make verify-history      - validate history bundle checksums, refs, and Git structure' \
+	  'make history-bundle      - mirror-restore/fsck history and bind its annotated release tag' \
+	  'make verify-history      - validate history bytes, exact refs, tag binding, and all objects' \
 	  'make recovery            - build and verify source plus full-history recovery artifacts' \
 	  'make verify              - non-TeX publication gate' \
 	  'make release             - verify, rebuild/inspect paper, and package' \
@@ -60,13 +60,13 @@ paper-refresh: paper
 	cp $(BUILT_PDF) $(TRACKED_PDF)
 
 paper-check: paper
-	$(PYTHON) scripts/check_pdf.py $(BUILT_PDF)
+	$(PYTHON) scripts/check_pdf.py $(BUILT_PDF) --rebuilt --require-tools
 
 tectonic:
 	mkdir -p $(BUILD_DIR)
 	tectonic -X compile $(TEX) --outdir $(BUILD_DIR)
 	cp $(BUILD_DIR)/main.pdf $(BUILT_PDF)
-	$(PYTHON) scripts/check_pdf.py $(BUILT_PDF)
+	$(PYTHON) scripts/check_pdf.py $(BUILT_PDF) --rebuilt --require-tools
 
 package: static test finite-check
 	$(PYTHON) scripts/package_release.py --output-dir $(RELEASE_DIR)
@@ -78,7 +78,7 @@ package-repackaging: static test finite-check
 	$(PYTHON) scripts/check_repackaging.py
 
 verify-source-zip: package
-	@version=`PYTHONPATH=scripts $(PYTHON) -c 'from pathlib import Path; from strict_json import load; print(load(Path("project.json"))["version"])'`; \
+	@version=`PYTHONPATH=scripts $(PYTHON) -c 'from pathlib import Path; from strict_json import load_canonical; print(load_canonical(Path("project.json"))["version"])'`; \
 	$(PYTHON) scripts/verify_source_zip.py \
 	  "$(RELEASE_DIR)/rooted-tree-catalan-closure-v$$version.zip" \
 	  --checksum "$(RELEASE_DIR)/rooted-tree-catalan-closure-v$$version.zip.sha256" \

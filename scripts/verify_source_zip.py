@@ -23,7 +23,7 @@ from release_integrity import (
     validate_zip_info,
 )
 from source_inventory import source_exclusion_reason
-from strict_json import StrictJSONError, loads as strict_json_loads
+from strict_json import StrictJSONError, loads_canonical as strict_json_loads
 
 PREFIX_RE = re.compile(r"^rooted-tree-catalan-closure-v(\d+\.\d+\.\d+)$")
 

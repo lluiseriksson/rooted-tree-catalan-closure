@@ -1,26 +1,30 @@
 #!/usr/bin/env python3
-"""Create a checksum-verifiable Git bundle preserving repository history and refs.
+"""Create and deeply verify a Git bundle preserving repository history and refs.
 
 The deterministic source ZIP restores the publication tree. This complementary Git
-bundle restores commit history and refs. A Git bundle is verified structurally and by
-SHA-256, but is deliberately not claimed to be byte-identical across Git versions.
+bundle restores commits and refs. It is checksummed and subjected to bundle verification,
+an exact head inventory, a mirror restore, strict full-object fsck, and release-tag binding.
+It is deliberately not claimed to be byte-identical across Git versions.
 """
 
 from __future__ import annotations
 
 import argparse
-import json
-import re
 import subprocess
 import sys
 from pathlib import Path
 
+from history_integrity import (
+    TEMP_REF,
+    HistoryIntegrityError,
+    deep_verify_bundle,
+    parse_bundle_heads,
+    validate_oid,
+)
 from release_integrity import sha256_file
-from strict_json import StrictJSONError, load as load_json
+from strict_json import StrictJSONError, canonical_dumps, load_canonical as load_json
 
 DEFAULT_ROOT = Path(__file__).resolve().parents[1]
-TEMP_REF = "refs/rtc-recovery/HEAD"
-OID_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
 def run(root: Path, *args: str, capture: bool = True) -> str:
@@ -34,23 +38,11 @@ def run(root: Path, *args: str, capture: bool = True) -> str:
     return completed.stdout.strip() if capture else ""
 
 
-def parse_bundle_heads(text: str) -> list[dict[str, str]]:
-    """Parse ``git bundle list-heads`` output into a canonical inventory."""
-    heads: list[dict[str, str]] = []
-    seen: set[str] = set()
-    for line_number, line in enumerate(text.splitlines(), 1):
-        try:
-            oid, ref = line.split(" ", 1)
-        except ValueError as exc:
-            raise ValueError(f"malformed git bundle head line {line_number}: {line!r}") from exc
-        if OID_RE.fullmatch(oid) is None:
-            raise ValueError(f"invalid object id in git bundle head line {line_number}")
-        if not ref or ref in seen:
-            raise ValueError(f"duplicate or empty git bundle head: {ref!r}")
-        seen.add(ref)
-        heads.append({"ref": ref, "oid": oid})
-    heads.sort(key=lambda item: item["ref"])
-    return heads
+def reject_irregular_outputs(paths: list[Path]) -> None:
+    """Reject output symlinks/directories before any history artifact is written."""
+    for path in paths:
+        if path.is_symlink() or (path.exists() and not path.is_file()):
+            raise HistoryIntegrityError(f"refusing non-regular history output: {path}")
 
 
 def main() -> int:
@@ -65,6 +57,7 @@ def main() -> int:
         if run(root, "rev-parse", "--is-inside-work-tree") != "true":
             raise RuntimeError("not inside a Git worktree")
         status = run(root, "status", "--porcelain=v1", "--untracked-files=all")
+        object_format = run(root, "rev-parse", "--show-object-format")
     except (FileNotFoundError, subprocess.CalledProcessError, RuntimeError) as exc:
         print(f"ERROR: cannot inspect Git repository: {exc}", file=sys.stderr)
         return 1
@@ -81,16 +74,33 @@ def main() -> int:
     if not isinstance(project, dict):
         print(f"ERROR: {project_path} must contain a JSON object", file=sys.stderr)
         return 1
-    prefix = f"rooted-tree-catalan-closure-v{project['version']}"
+    version = project.get("version")
+    if not isinstance(version, str):
+        print("ERROR: project.json version must be a string", file=sys.stderr)
+        return 1
+    prefix = f"rooted-tree-catalan-closure-v{version}"
     output_dir = Path(args.output_dir)
     if not output_dir.is_absolute():
         output_dir = root / output_dir
+    output_dir = output_dir.resolve()
+    if output_dir.is_symlink() or (output_dir.exists() and not output_dir.is_dir()):
+        print(f"ERROR: invalid history output directory: {output_dir}", file=sys.stderr)
+        return 1
     output_dir.mkdir(parents=True, exist_ok=True)
     bundle = output_dir / f"{prefix}-history.bundle"
     inventory = output_dir / f"{prefix}.history.json"
     sums = output_dir / f"{prefix}.history.SHA256SUMS"
+    try:
+        reject_irregular_outputs([bundle, inventory, sums])
+    except HistoryIntegrityError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
 
-    head_commit = run(root, "rev-parse", "HEAD")
+    try:
+        head_commit = validate_oid(run(root, "rev-parse", "HEAD"), object_format, label="HEAD")
+    except (subprocess.CalledProcessError, HistoryIntegrityError) as exc:
+        print(f"ERROR: cannot resolve repository HEAD: {exc}", file=sys.stderr)
+        return 1
     symbolic = subprocess.run(
         ["git", "symbolic-ref", "--quiet", "HEAD"],
         cwd=root,
@@ -113,39 +123,55 @@ def main() -> int:
         if verify.returncode != 0:
             print(verify.stdout + verify.stderr, file=sys.stderr)
             return 1
-        bundle_heads = parse_bundle_heads(run(root, "bundle", "list-heads", str(bundle)))
-    except (subprocess.CalledProcessError, ValueError) as exc:
-        print(f"ERROR: cannot create or inventory Git bundle: {exc}", file=sys.stderr)
+        bundle_heads = parse_bundle_heads(
+            run(root, "bundle", "list-heads", str(bundle)), object_format
+        )
+        restoration = deep_verify_bundle(
+            bundle,
+            bundle_heads,
+            head_commit=head_commit,
+            object_format=object_format,
+            version=version,
+        )
+    except (subprocess.CalledProcessError, HistoryIntegrityError) as exc:
+        print(f"ERROR: cannot create or deeply verify Git bundle: {exc}", file=sys.stderr)
         return 1
     finally:
         subprocess.run(["git", "update-ref", "-d", TEMP_REF], cwd=root, check=False)
 
-    head_map = {entry["ref"]: entry["oid"] for entry in bundle_heads}
-    if head_map.get("HEAD") != head_commit or head_map.get(TEMP_REF) != head_commit:
-        print("ERROR: Git bundle does not retain HEAD and the temporary recovery ref", file=sys.stderr)
-        return 1
-
     bundle_digest = sha256_file(bundle)
     payload = {
-        "schema_version": 2,
+        "schema_version": 3,
         "status": "verified_history_backup_no_byte_reproducibility_claim",
         "repository": project["repository"],
-        "version": project["version"],
+        "version": version,
+        "object_format": object_format,
         "head_commit": head_commit,
         "head_ref": head_ref,
         "temporary_recovery_ref": TEMP_REF,
+        "release_tag": restoration.release_tag,
+        "release_tag_object": restoration.release_tag_object,
+        "release_tag_commit": restoration.release_tag_commit,
+        "release_tag_annotated": restoration.release_tag_annotated,
         "bundle": bundle.name,
         "bundle_sha256": bundle_digest,
         "bundle_heads": bundle_heads,
         "git_bundle_verify": (verify.stdout + verify.stderr).splitlines(),
+        "restoration_verification": {
+            "mirror_clone": True,
+            "exact_refs": True,
+            "restored_ref_count": restoration.restored_ref_count,
+            "git_fsck_full_strict": restoration.fsck_full_strict,
+        },
         "restore": [
             f"git clone {bundle.name} rooted-tree-catalan-closure",
             "cd rooted-tree-catalan-closure",
             f"git checkout {head_commit}",
+            "git fsck --full --strict",
         ],
     }
     inventory.write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        canonical_dumps(payload),
         encoding="utf-8",
         newline="\n",
     )

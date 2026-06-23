@@ -11,8 +11,8 @@ make static
 This verifies pins, critical Git blobs, active Lean placeholder policy, exact oracle
 axiom sets, captured build evidence, theorem manifest, finite-evidence metadata, claim
 boundary, cross-surface metadata alignment, optional extracted-source manifest parity,
-semantically pinned workflow actions, local Markdown links, text normalization, and PDF
-structure.
+semantically pinned workflow actions, local Markdown links, text normalization, canonical
+JSON bytes, and the passive single-revision PDF structure.
 
 The workflow-specific policy can also be run directly:
 
@@ -59,8 +59,8 @@ make verify-source-zip
 make verify-release
 ```
 
-The source ZIP uses sorted `ZIP_STORED` entries, normalized timestamps, UTF-8 names, and
-normalized permissions. Avoiding Deflate removes zlib-version-dependent output. An
+The source ZIP uses sorted `ZIP_STORED` entries, normalized timestamps, canonical
+filename-dependent UTF-8 flags, and full Unix regular-file modes (`S_IFREG | 0644/0755`). Avoiding Deflate removes zlib-version-dependent output. An
 internal `SOURCE-MANIFEST.sha256`, external checksum, SPDX 2.3 SBOM, complete release
 `SHA256SUMS`, theorem-manifest digest, finite-evidence digest, and release metadata are cross-checked against the
 working source tree by `scripts/verify_release.py`. The verifier then extracts the ZIP
@@ -105,10 +105,11 @@ make history-bundle
 make verify-history
 ```
 
-The generated `.bundle` retains commit history and refs, while the companion JSON records
-the exact HEAD and ref inventory. SHA-256 protects the bytes and `git bundle verify`
-checks structural usability. No cross-Git-version byte-reproducibility claim is made for
-the bundle. See [DISASTER_RECOVERY.md](DISASTER_RECOVERY.md).
+The generated `.bundle` retains commit history and refs, while schema-3 JSON records the
+exact HEAD/ref inventory and annotated release tag. Verification mirror-clones the bundle
+under isolated Git configuration, runs `git fsck --full --strict`, compares every restored
+ref exactly, and requires the release tag to peel to `HEAD`. No cross-Git-version
+byte-reproducibility claim is made for the bundle. See [DISASTER_RECOVERY.md](DISASTER_RECOVERY.md).
 
 ## Tooling runtime matrix
 
@@ -121,8 +122,9 @@ Run `scripts/verify_source_zip.py` against the original ZIP and its checksum bef
 extraction. The verifier reads normalized modes from ZIP metadata, so Windows permission
 translation cannot create a false failure. Archive file count and expanded size are bounded,
 and project metadata is parsed with duplicate-key, non-finite-number, exponent-overflow, and
-exponent-underflow rejection.
+exponent-underflow rejection. Integrity-critical JSON is also required to use sorted keys,
+two-space indentation, ASCII escapes, and one terminal LF.
 
-History inventories use schema 2 and must equal `git bundle list-heads` exactly. The Git
-bundle remains structurally verified and checksummed but is not claimed byte-reproducible
-across Git versions.
+History inventories use schema 3 and must equal `git bundle list-heads` and the restored
+mirror ref set exactly. The bundle must contain an annotated `v<version>` tag bound to HEAD,
+pass strict full-object fsck, and remains explicitly non-byte-reproducible across Git versions.

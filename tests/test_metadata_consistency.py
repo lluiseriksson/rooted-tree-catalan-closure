@@ -42,7 +42,7 @@ class MetadataConsistencyTests(unittest.TestCase):
             codemeta_path = root / "codemeta.json"
             codemeta = json.loads(codemeta_path.read_text(encoding="utf-8"))
             codemeta["version"] = "0.0.0"
-            codemeta_path.write_text(json.dumps(codemeta, indent=2) + "\n", encoding="utf-8")
+            codemeta_path.write_text(json.dumps(codemeta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
             self.assertIn("CodeMeta version drift", check_metadata_consistency(root))
 
     def test_formal_boundary_drift_is_reported(self) -> None:
@@ -52,7 +52,7 @@ class MetadataConsistencyTests(unittest.TestCase):
             manifest_path = root / "archive" / "theorem-manifest.json"
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             manifest["formal_boundary"]["closed_exact_catalan_identity"] = True
-            manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+            manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
             errors = check_metadata_consistency(root)
             self.assertTrue(any("closed_exact_catalan_identity" in error for error in errors))
 

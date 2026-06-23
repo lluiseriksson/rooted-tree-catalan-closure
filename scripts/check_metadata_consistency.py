@@ -12,7 +12,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from strict_json import StrictJSONError, load as load_json
+from strict_json import StrictJSONError, load_canonical as load_json
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -82,8 +82,8 @@ def check_metadata_consistency(root: Path = ROOT) -> list[str]:
     project = _json_file(root, "project.json", errors)
     if not project:
         return errors
-    _expect(errors, project.get("schema_version") == 5, "project.json schema-version drift")
-    _expect(errors, project.get("recovery_generation") == 8, "project.json recovery-generation drift")
+    _expect(errors, project.get("schema_version") == 6, "project.json schema-version drift")
+    _expect(errors, project.get("recovery_generation") == 9, "project.json recovery-generation drift")
 
     version = project.get("version")
     release_date = project.get("release_date")
@@ -160,6 +160,13 @@ def check_metadata_consistency(root: Path = ROOT) -> list[str]:
         "tracked_git_files_only",
         "history_bundle_exact_head_inventory",
         "archive_resource_limits",
+        "canonical_json_encoding",
+        "canonical_zip_utf8_flags",
+        "history_bundle_deep_fsck",
+        "history_release_tag_binding",
+        "passive_single_revision_pdf",
+        "producer_source_zip_self_verification",
+        "zip_regular_file_type_bits",
     ):
         _expect(errors, release_policy.get(key) is True, f"project release policy does not enable {key}")
     _expect(
@@ -183,7 +190,34 @@ def check_metadata_consistency(root: Path = ROOT) -> list[str]:
     _expect(errors, any("complete release sha256sums" in str(item).lower() for item in required_checks), "project required checks omit the complete release checksum inventory")
     _expect(errors, any("spdx 2.3 file sha1" in str(item).lower() for item in required_checks), "project required checks omit SPDX 2.3 verification data")
     _expect(errors, any("non-destructive powershell" in str(item).lower() for item in required_checks), "project required checks omit the non-destructive PowerShell build")
-    _expect(errors, project.get("history_inventory_schema") == 2, "project history inventory schema drift")
+    _expect(errors, any("canonical json encoding" in str(item).lower() for item in required_checks), "project required checks omit canonical JSON encoding")
+    _expect(errors, any("regular-file type bits" in str(item).lower() for item in required_checks), "project required checks omit canonical ZIP regular-file metadata")
+    _expect(errors, any("producer-side source zip self-verification" in str(item).lower() for item in required_checks), "project required checks omit producer ZIP self-verification")
+    _expect(errors, any("git fsck --full --strict" in str(item).lower() for item in required_checks), "project required checks omit deep Git bundle fsck")
+    _expect(errors, any("annotated v<version> release tag" in str(item).lower() for item in required_checks), "project required checks omit release-tag binding")
+    _expect(errors, any("passive single-revision" in str(item).lower() for item in required_checks), "project required checks omit the manuscript PDF safety contract")
+    _expect(errors, any("rebuild pdf-version allowlist" in str(item).lower() for item in required_checks), "project required checks omit the rebuild PDF-version contract")
+    _expect(errors, project.get("history_inventory_schema") == 3, "project history inventory schema drift")
+    manuscript = project.get("manuscript_pdf", {})
+    _expect(
+        errors,
+        manuscript == {
+            "active_content": False,
+            "author": "Lluis Eriksson",
+            "embedded_files": False,
+            "encrypted": False,
+            "file": "Rooted_tree_Catalan_closure.pdf",
+            "forms": False,
+            "incremental_updates": False,
+            "javascript": False,
+            "page_size": "A4",
+            "pages": 17,
+            "pdf_version": "1.5",
+            "rebuild_pdf_versions": ["1.5", "1.7"],
+            "title": "Rooted-tree summation and Catalan closure for polymer cluster expansions with holes",
+        },
+        "project manuscript PDF contract drift",
+    )
     return errors
 
 

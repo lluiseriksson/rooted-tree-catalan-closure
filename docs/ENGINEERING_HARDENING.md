@@ -1,4 +1,4 @@
-# Engineering hardening in v1.5.1 through v1.7.0
+# Engineering hardening in v1.5.1 through v1.8.0
 
 ## Problem found
 
@@ -127,3 +127,41 @@ The PowerShell manuscript entrypoint now mirrors the Makefile contract: it write
 the rebuilt PDF under `build/` and leaves the tracked recovered PDF untouched unless
 `-RefreshTrackedPdf` is supplied. `make verify` also includes the independent release verifier,
 so the concise documented gate and the expanded command sequence are equivalent.
+
+## v1.8.0: canonical Unix ZIP entries and producer closure
+
+Earlier ZIPs normalized permission bits but did not include the Unix regular-file type bit in
+`external_attr`. Some tools therefore displayed entries as an unknown file type even though
+the content and permissions were correct. Version 1.8.0 writes the canonical full mode
+`S_IFREG | 0644` or `S_IFREG | 0755`; verification rejects missing type bits, extra mode bits,
+DOS attributes, and filename flags that do not exactly follow the ASCII/UTF-8 encoding rule.
+
+The producer now applies the verifier's entry-count, per-file-size, and total-expanded-size
+ceilings before writing. Immediately after writing the source ZIP and sidecar, it runs the
+standalone verifier against those bytes. SBOM and release metadata are emitted only after this
+producer-side verification succeeds.
+
+## v1.8.0: canonical JSON and deep history restoration
+
+Tracked and generated integrity JSON now has one accepted byte encoding: sorted keys,
+two-space indentation, ASCII escaping, and one terminal LF. Strict parsing still rejects
+duplicate keys and non-finite or silently underflowing numbers; canonical loading additionally
+rejects semantically equivalent but byte-different encodings.
+
+History inventory schema 3 validates more than the bundle advertisement. Verification creates
+an isolated mirror clone with system and user Git configuration disabled, runs
+`git fsck --full --strict`, inventories every restored ref, and compares that set exactly with
+`git bundle list-heads`. The annotated `v<version>` tag must be present as a tag object and
+must peel to the recorded `HEAD`. SHA-1 and SHA-256 Git object formats are validated by their
+reported format rather than by a hard-coded object-ID length.
+
+## v1.8.0: passive single-revision manuscript contract
+
+The PDF checker now enforces the recorded title, author, and 17-page A4 geometry. The
+tracked archival manuscript must remain PDF 1.5 exactly; contemporary rebuilds are accepted
+only when their PDF version is in the declared 1.5/1.7 allowlist. Dependency-free checks
+require a single EOF/xref terminator, no trailing payload, and no active-content dictionaries.
+Poppler checks additionally require no encryption, JavaScript, forms, suspicious structure,
+or embedded files, while text extraction confirms the publication title. These checks do not
+claim that raw token scanning is a general PDF parser; they define a deliberately narrow
+accepted publication profile for this fixed artifact and its controlled rebuilds.

@@ -44,3 +44,11 @@ identity remains open in this artifact.
 ## CI source-selection invariant
 
 Do not weaken `TEX := main.tex` or `TRACKED_PDF := Rooted_tree_Catalan_closure.pdf` to `?=`. The audit treats these as release-critical invariants.
+15. Preserve canonical JSON bytes for every integrity-critical `.json`: sorted keys,
+    two-space indentation, ASCII escapes, and one final LF.
+16. ZIP entries must carry the Unix regular-file type bit plus canonical permissions; do not
+    accept permission-only external attributes or unconditional UTF-8 flags.
+17. A history release requires an annotated `v<version>` tag at `HEAD`, exact restored refs,
+    isolated mirror restoration, and `git fsck --full --strict`.
+18. Preserve the passive single-revision PDF contract: exact identity/page geometry and no
+    encryption, JavaScript, forms, actions, rich media, attachments, or trailing payload.

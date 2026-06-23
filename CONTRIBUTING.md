@@ -107,3 +107,21 @@ faithfully reproduce Unix executable bits. Validate the original ZIP with
 Integrity-critical JSON must be loaded through `scripts/strict_json.py` so duplicate keys and
 non-finite values cannot be silently normalized. History changes must preserve exact parity
 between `bundle_heads` and `git bundle list-heads`.
+
+## Canonical metadata, ZIP, PDF, and history contracts
+
+Integrity-critical JSON must be written with `strict_json.canonical_dumps` and read with
+`load_canonical`/`loads_canonical`. A semantically equivalent reformat is an integrity error,
+not a harmless normalization.
+
+Source ZIP entries must use full Unix regular-file modes (`S_IFREG | 0644/0755`) and the UTF-8
+flag only when the filename cannot be represented as ASCII. The packager must keep its
+producer-side resource preflight and immediate standalone verification.
+
+Run `make paper-check` with Poppler tools installed. The tracked archival PDF must retain
+its exact 17-page A4/PDF-1.5 identity. Rebuilds may use only the declared PDF-1.5/PDF-1.7
+allowlist, with one revision and no active or embedded content.
+
+Create the annotated `v<version>` tag before running the history release. History tooling
+changes must preserve isolated mirror restoration, exact restored-ref parity,
+`git fsck --full --strict`, and proof that the annotated tag peels to `HEAD`.

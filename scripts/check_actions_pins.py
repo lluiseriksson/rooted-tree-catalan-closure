@@ -11,7 +11,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from strict_json import StrictJSONError, load as load_json
+from strict_json import StrictJSONError, load_canonical as load_json
 
 ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = ROOT / "archive" / "github-actions-policy.json"

@@ -37,7 +37,7 @@ from release_integrity import (
     validate_zip_info,
 )
 from source_inventory import SourceInventoryError
-from strict_json import StrictJSONError, load as load_json
+from strict_json import StrictJSONError, load_canonical as load_json
 from verify_source_zip import verify_source_zip
 
 SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
@@ -446,7 +446,7 @@ def main() -> int:
         fail("SPDX relationship inventory drift")
 
     meta = load_object(meta_path, "release metadata")
-    if meta.get("schema_version") != 5:
+    if meta.get("schema_version") != 6:
         fail("unsupported release metadata schema")
     if meta.get("source_archive") != archive.name or meta.get("source_archive_sha256") != digest:
         fail("release metadata does not match source archive")
@@ -454,10 +454,27 @@ def main() -> int:
         fail("release metadata source-tree checksum mismatch")
     if meta.get("source_file_count") != len(manifest_records):
         fail("release metadata source-file count mismatch")
+    if meta.get("source_file_bytes") != standalone_report.source_file_bytes:
+        fail("release metadata source-file byte count mismatch")
+    if meta.get("metadata_encoding") != "canonical_json_sorted_keys_indent_2_ascii_lf":
+        fail("release metadata canonical-JSON encoding profile drift")
     if meta.get("archive_method") != "ZIP_STORED":
         fail("release metadata archive method mismatch")
     if meta.get("version") != project["version"] or meta.get("formal_status") != project["status"]:
         fail("release metadata does not match project metadata")
+    if meta.get("manuscript_pdf") != project.get("manuscript_pdf"):
+        fail("release metadata manuscript-PDF contract drift")
+    expected_zip_profile = {
+        "archive_comment": False,
+        "entry_comments": False,
+        "executable_permissions": "0755",
+        "extra_fields": False,
+        "regular_permissions": "0644",
+        "unix_regular_file_type_bits": True,
+        "utf8_flag": "set_if_and_only_if_filename_requires_utf8",
+    }
+    if meta.get("zip_metadata_profile") != expected_zip_profile:
+        fail("release metadata ZIP profile drift")
     source_inventory = meta.get("source_inventory", {})
     if source_inventory != {
         "git_checkout": "tracked_files_only_with_clean_worktree_required",
@@ -483,6 +500,8 @@ def main() -> int:
         "max_files": MAX_ARCHIVE_FILES,
         "max_file_bytes": MAX_ARCHIVE_FILE_BYTES,
         "max_total_bytes": MAX_ARCHIVE_TOTAL_BYTES,
+        "produced_entries": len(manifest_records) + 1,
+        "produced_total_bytes": standalone_report.source_file_bytes + len(manifest_bytes),
     }
     if self_audit.get("resource_limits") != expected_limits:
         fail("release metadata source-archive resource limits drift")
@@ -490,6 +509,8 @@ def main() -> int:
         fail("release metadata archived-evidence inventory drift")
     if self_audit.get("repackaging_verified") is not True:
         fail("release metadata does not record extracted-source repackaging support")
+    if self_audit.get("producer_self_verified") is not True:
+        fail("release metadata does not record producer source-ZIP self-verification")
     sbom_profile = meta.get("sbom_profile")
     if sbom_profile != {
         "spdx_version": "SPDX-2.3",
@@ -509,10 +530,14 @@ def main() -> int:
     history = meta.get("history_backup", {})
     if not isinstance(history, dict) or history.get("outputs") != project["history_backup_outputs"]:
         fail("release metadata history-output inventory mismatch")
-    if history.get("inventory_schema") != 2:
+    if history.get("inventory_schema") != 3:
         fail("release metadata history inventory schema drift")
     if history.get("exact_bundle_heads_verified") is not True:
         fail("release metadata does not require exact Git bundle head verification")
+    if history.get("deep_mirror_restore_and_fsck") is not True:
+        fail("release metadata does not require deep Git bundle restoration/fsck")
+    if history.get("annotated_release_tag_bound_to_head") is not True:
+        fail("release metadata does not require annotated release-tag binding")
     if history.get("byte_reproducibility_claim") is not False:
         fail("release metadata overclaims Git-bundle byte reproducibility")
     for key, relative in (

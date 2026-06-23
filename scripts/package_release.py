@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import json
+import stat
 import uuid
 import zipfile
 from datetime import date, datetime, timezone
@@ -16,9 +16,12 @@ from release_integrity import (
     MAX_ARCHIVE_FILES,
     MAX_ARCHIVE_FILE_BYTES,
     MAX_ARCHIVE_TOTAL_BYTES,
+    IntegrityError,
     format_source_manifest,
+    validate_source_payload_limits,
 )
-from strict_json import load as load_json
+from strict_json import canonical_dumps, load_canonical as load_json
+from verify_source_zip import verify_source_zip
 from source_inventory import (
     EXCLUDED_NAMES,
     EXCLUDED_PARTS,
@@ -62,8 +65,8 @@ def zip_info(
     info = zipfile.ZipInfo(name, date_time=timestamp)
     info.compress_type = zipfile.ZIP_STORED
     info.create_system = 3
-    info.external_attr = ((0o755 if executable else 0o644) & 0xFFFF) << 16
-    info.flag_bits |= 0x800
+    permissions = 0o755 if executable else 0o644
+    info.external_attr = (stat.S_IFREG | permissions) << 16
     return info
 
 
@@ -199,6 +202,13 @@ def main() -> int:
         [(str(record["path"]), str(record["sha256"])) for record in records]
     )
     source_tree_sha256 = sha256(manifest)
+    try:
+        produced_entry_count, produced_total_bytes = validate_source_payload_limits(
+            [(str(record["path"]), int(record["size"])) for record in records],
+            len(manifest),
+        )
+    except IntegrityError as exc:
+        raise SystemExit(str(exc)) from exc
 
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_STORED, allowZip64=False) as archive:
         for path, record in zip(files, records, strict=True):
@@ -209,6 +219,19 @@ def main() -> int:
 
     zip_digest = sha256(zip_path.read_bytes())
     checksum_path.write_text(f"{zip_digest}  {zip_path.name}\n", encoding="utf-8", newline="\n")
+    try:
+        producer_report = verify_source_zip(
+            zip_path,
+            checksum_path=checksum_path,
+            expected_version=str(version),
+        )
+    except IntegrityError as exc:
+        raise SystemExit(f"producer self-verification failed: {exc}") from exc
+    if (
+        producer_report.source_file_count != len(records)
+        or producer_report.source_file_bytes != sum(int(record["size"]) for record in records)
+    ):
+        raise SystemExit("producer self-verification report disagrees with source inventory")
 
     namespace_uuid = uuid.uuid5(uuid.NAMESPACE_URL, f"{project['repository']}@v{version}")
     package_id = "SPDXRef-Package"
@@ -284,7 +307,7 @@ def main() -> int:
         "relationships": relationships,
     }
     sbom_path.write_text(
-        json.dumps(sbom, indent=2, sort_keys=True, allow_nan=False) + "\n",
+        canonical_dumps(sbom),
         encoding="utf-8",
         newline="\n",
     )
@@ -293,7 +316,7 @@ def main() -> int:
     theorem_manifest = ROOT / "archive" / "theorem-manifest.json"
     covered_outputs = [zip_path, checksum_path, sbom_path, metadata_path]
     release_meta = {
-        "schema_version": 5,
+        "schema_version": 6,
         "name": project["name"],
         "version": version,
         "release_date": project["release_date"],
@@ -301,7 +324,9 @@ def main() -> int:
         "source_archive_sha256": zip_digest,
         "source_tree_sha256": source_tree_sha256,
         "source_file_count": len(records),
+        "source_file_bytes": sum(int(record["size"]) for record in records),
         "source_manifest": "SOURCE-MANIFEST.sha256",
+        "metadata_encoding": "canonical_json_sorted_keys_indent_2_ascii_lf",
         "source_inventory": {
             "git_checkout": "tracked_files_only_with_clean_worktree_required",
             "extracted_archive": "filtered_recursive_scan_without_generated_manifest",
@@ -313,15 +338,27 @@ def main() -> int:
             "standalone_zip_command": f"python scripts/verify_source_zip.py {zip_path.name} --checksum {checksum_path.name}",
             "required": True,
             "repackaging_verified": True,
+            "producer_self_verified": True,
             "host_extracted_modes_authoritative": False,
             "archived_evidence_logs": list(ARCHIVED_EVIDENCE_LOGS),
             "resource_limits": {
                 "max_files": MAX_ARCHIVE_FILES,
                 "max_file_bytes": MAX_ARCHIVE_FILE_BYTES,
                 "max_total_bytes": MAX_ARCHIVE_TOTAL_BYTES,
+                "produced_entries": produced_entry_count,
+                "produced_total_bytes": produced_total_bytes,
             },
         },
         "archive_method": "ZIP_STORED",
+        "zip_metadata_profile": {
+            "unix_regular_file_type_bits": True,
+            "regular_permissions": "0644",
+            "executable_permissions": "0755",
+            "utf8_flag": "set_if_and_only_if_filename_requires_utf8",
+            "extra_fields": False,
+            "entry_comments": False,
+            "archive_comment": False,
+        },
         "normalized_timestamp": release_date.strftime("%Y-%m-%dT00:00:00Z"),
         "sbom": sbom_path.name,
         "sbom_profile": {
@@ -338,6 +375,7 @@ def main() -> int:
         },
         "formal_status": project["status"],
         "unresolved_obligation": project["unresolved_obligation"],
+        "manuscript_pdf": project["manuscript_pdf"],
         "recovery_baseline_commit": project["recovery_baseline_commit"],
         "finite_evidence": {
             "path": finite_evidence.relative_to(ROOT).as_posix(),
@@ -351,13 +389,15 @@ def main() -> int:
         "history_backup": {
             "status": "separate_checksum_and_git_bundle_verify_artifact",
             "outputs": project["history_backup_outputs"],
-            "inventory_schema": 2,
+            "inventory_schema": 3,
             "exact_bundle_heads_verified": True,
+            "deep_mirror_restore_and_fsck": True,
+            "annotated_release_tag_bound_to_head": True,
             "byte_reproducibility_claim": False,
         },
     }
     metadata_path.write_text(
-        json.dumps(release_meta, indent=2, sort_keys=True, allow_nan=False) + "\n",
+        canonical_dumps(release_meta),
         encoding="utf-8",
         newline="\n",
     )

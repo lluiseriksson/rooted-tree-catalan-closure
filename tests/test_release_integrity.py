@@ -24,6 +24,7 @@ from release_integrity import (
     sha256,
     validate_archive_resource_limits,
     validate_portable_relative_path,
+    validate_source_payload_limits,
     validate_zip_info,
 )
 from source_inventory import (
@@ -166,6 +167,33 @@ class ReleaseIntegrityTests(unittest.TestCase):
         with self.assertRaises(IntegrityError):
             archive_members([bad], "artifact-v1.0.0")
 
+
+
+    def test_zip_metadata_requires_regular_file_type_and_canonical_utf8_flag(self) -> None:
+        timestamp = (2026, 6, 23, 0, 0, 0)
+        canonical = zip_info("artifact-v1.0.0/README.md", timestamp)
+        self.assertEqual(validate_zip_info(canonical, timestamp), 0o644)
+
+        missing_type = zipfile.ZipInfo("artifact-v1.0.0/README.md", date_time=timestamp)
+        missing_type.compress_type = zipfile.ZIP_STORED
+        missing_type.create_system = 3
+        missing_type.external_attr = 0o644 << 16
+        with self.assertRaisesRegex(IntegrityError, "regular Unix file"):
+            validate_zip_info(missing_type, timestamp)
+
+        wrong_flag = zip_info("artifact-v1.0.0/README.md", timestamp)
+        wrong_flag.flag_bits = 0x800
+        with self.assertRaisesRegex(IntegrityError, "UTF-8 flag policy"):
+            validate_zip_info(wrong_flag, timestamp)
+
+
+    def test_producer_resource_limits_fail_before_writing(self) -> None:
+        self.assertEqual(validate_source_payload_limits([("a.txt", 10)], 75), (2, 85))
+        with self.assertRaisesRegex(IntegrityError, "too large"):
+            validate_source_payload_limits(
+                [("huge.bin", MAX_ARCHIVE_FILE_BYTES + 1)],
+                75,
+            )
 
     def test_archive_resource_limits_reject_oversized_entries(self) -> None:
         info = zipfile.ZipInfo("artifact-v1.0.0/huge.bin")

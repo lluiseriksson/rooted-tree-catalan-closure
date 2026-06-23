@@ -17,7 +17,7 @@ Repository recovery and theorem completeness are separate questions:
 
 | Component | Status |
 |---|---|
-| Manuscript source and compiled PDF | Recovered and integrity-pinned |
+| Manuscript source and compiled PDF | Recovered, integrity-pinned, and checked as a passive single-revision 17-page A4 PDF |
 | Conditional Lean adapter | Checked in the archived pinned environment |
 | Square-root Catalan closure | Checked in Lean |
 | Appendix-F marked-root adapter | Checked, conditional on the Catalan identity |
@@ -26,7 +26,7 @@ Repository recovery and theorem completeness are separate questions:
 | Static integrity, patch applicability, packaging, and release verification | Automated |
 | Source ZIP self-audit and archived Lean evidence | Built from tracked files in a clean tree; verified directly, after extraction, and after second-generation repackaging |
 | Workflow supply chain | Allowlisted actions pinned to full commit SHAs |
-| Full Git history and refs | Recoverable through a Git bundle checked against its exact head inventory |
+| Full Git history and refs | Recoverable through a mirror-restored, strict-fsck Git bundle bound to the annotated release tag |
 
 The exact remaining proposition is:
 
@@ -109,7 +109,8 @@ make paper-check
 requires the explicit `make paper-refresh` target.
 
 On PowerShell, `./build.ps1` follows the same non-destructive policy. Use
-`./build.ps1 -RefreshTrackedPdf` only for an intentional archival replacement.
+`./build.ps1 -RequirePdfTools` requests the full Poppler inspection suite; use
+`-RefreshTrackedPdf` only for an intentional archival replacement.
 
 Create the five canonical release outputs: deterministic source ZIP, ZIP sidecar,
 SPDX 2.3 SBOM, release metadata, and complete release checksums:
@@ -125,7 +126,10 @@ The generated `SHA256SUMS` covers the ZIP, sidecar, SBOM, and metadata, while th
 verifier requires exactly the five declared regular-file outputs.
 
 The source ZIP uses uncompressed, normalized entries (`ZIP_STORED`) so its bytes do not
-depend on a particular zlib version. It includes the archived Lean build/oracle logs, is
+depend on a particular zlib version. Every entry carries an explicit Unix regular-file type
+bit, canonical `0644`/`0755` permissions, and a UTF-8 flag only when its filename needs one.
+The producer applies the same resource ceilings as the verifier and verifies the completed
+ZIP before emitting the remaining release metadata. It includes the archived Lean build/oracle logs, is
 extracted into a clean directory, and runs its own repository audit during
 `make verify-release`.
 
@@ -136,14 +140,14 @@ and canonical archive metadata directly:
 
 ```sh
 python scripts/verify_source_zip.py \
-  release/rooted-tree-catalan-closure-v1.7.0.zip \
-  --checksum release/rooted-tree-catalan-closure-v1.7.0.zip.sha256
+  release/rooted-tree-catalan-closure-v1.8.0.zip \
+  --checksum release/rooted-tree-catalan-closure-v1.8.0.zip.sha256
 ```
 
 This check treats ZIP metadata as authoritative and deliberately does not trust executable
 bits produced by a Windows extractor. It also rejects traversal, case collisions, unsafe
-portable names, duplicate JSON keys, non-finite JSON numbers, CRC failures, and implausible
-archive sizes. After extraction, verify the complete internal inventory with:
+portable names, noncanonical JSON bytes, duplicate JSON keys, non-finite JSON numbers, CRC
+failures, incorrect regular-file metadata or UTF-8 flags, and implausible archive sizes. After extraction, verify the complete internal inventory with:
 
 ```sh
 python scripts/check_source_manifest.py
@@ -166,8 +170,10 @@ make verify-history
 ```
 
 `make recovery` builds and verifies both recovery layers. The Git bundle is checksummed,
-checked with `git bundle verify`, and compared exactly with `git bundle list-heads`; unlike
-the source ZIP, it is not claimed to be byte-identical across Git versions. See
+checked with `git bundle verify`, mirror-restored under an isolated Git configuration, checked
+with `git fsck --full --strict`, compared with its exact restored ref set, and required to
+contain an annotated `v<version>` tag that peels to `HEAD`; unlike the source ZIP, it is not
+claimed to be byte-identical across Git versions. See
 [docs/DISASTER_RECOVERY.md](docs/DISASTER_RECOVERY.md).
 
 ## CI portability
@@ -217,10 +223,12 @@ The archived evidence records a successful 8,235-job build and exactly
 - `scripts/release_integrity.py` — portable path, manifest, ZIP, and extraction invariants.
 - `scripts/check_source_manifest.py` — extracted-source tree verification.
 - `scripts/check_metadata_consistency.py` — citation/release/theorem metadata parity.
-- `scripts/strict_json.py` — duplicate-key and non-finite-number rejection.
+- `scripts/strict_json.py` — strict parsing and canonical JSON byte encoding.
 - `scripts/verify_source_zip.py` — standalone permission-independent ZIP verification.
 - `scripts/verify_release.py` — independent release/source parity verification.
 - `scripts/create_history_bundle.py` — complete Git history/ref recovery bundle.
+- `scripts/history_integrity.py` — mirror restoration, exact-ref, tag, and strict-object checks.
+- `scripts/check_pdf.py` — structural and Poppler-backed passive manuscript inspection.
 - `schema/project.schema.json` — machine-readable metadata contract.
 - `build.ps1` — non-destructive PowerShell manuscript build and inspection entrypoint.
 - `docs/` — claims boundary, provenance, recovery, reproducibility, and proof roadmap.

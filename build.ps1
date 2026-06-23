@@ -1,6 +1,7 @@
 param(
     [string]$Tectonic = "tectonic",
     [string]$Python = "python",
+    [switch]$RequirePdfTools,
     [switch]$RefreshTrackedPdf
 )
 
@@ -19,7 +20,11 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Copy-Item -LiteralPath $sourcePdf -Destination $builtPdf -Force
-& $Python $checker $builtPdf
+$checkerArgs = @($checker, $builtPdf, "--rebuilt")
+if ($RequirePdfTools) {
+    $checkerArgs += "--require-tools"
+}
+& $Python @checkerArgs
 if ($LASTEXITCODE -ne 0) {
     throw "PDF inspection failed with exit code $LASTEXITCODE"
 }

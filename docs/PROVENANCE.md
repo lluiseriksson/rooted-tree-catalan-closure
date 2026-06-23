@@ -11,8 +11,9 @@ The recovered repository history is append-only:
 - `27c48960e8ae1b1ebfaafee4c210c26a1f2883e4` — released v1.4.1 finite-evidence and replay hardening.
 - `abb07be764efe6d208acafa9bdba443195ad7009` — released v1.5.0 recovery and portable packaging hardening.
 - `c06d8fddafd0a3b513712fcc8b1be144ff62f8f9` — released v1.6.0 standalone ZIP and exact bundle-head verification.
+- `6090393211b7b4684db145fb1010b0cec8497832` — released v1.7.0 clean-source, SPDX, complete-checksum, and platform-parity hardening.
 
-The v1.7.0 clean-source, SPDX, complete-checksum, and platform-parity layer applies on top
+The v1.8.0 canonical ZIP/JSON, deep history-restoration, and passive-PDF layer applies on top
 of that append-only history without rewriting prior commits. The recovered Lean adapter remains tied to upstream base
 `1d044a353ac2b69ddca732dd851fb0ab4a94d7af` and mailbox patch commit
 `d668c333db302f9f399374e3c824805a1c4d71da`.

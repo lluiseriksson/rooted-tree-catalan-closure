@@ -1,44 +1,35 @@
 # Release notes
 
-## v1.7.0 clean-source publication and SPDX/output integrity
+## v1.8.0 canonical archive metadata and deep recovery verification
 
-This release tightens the boundary between a development checkout and a publication
-artifact. A source release is now built only from tracked regular files in a clean Git
-worktree, and every emitted artifact is covered by an independently verified release
-inventory. The SPDX document now carries the checksum profile required for an analyzed
-SPDX 2.3 package while retaining SHA-256 as the release trust anchor.
-
-### Added
-
-- Tracked-only Git source discovery. Untracked, ignored, repository-internal, generated,
-  symbolic-link, missing, and non-regular tracked paths cannot silently enter or disappear
-  from a publication package.
-- A clean-worktree publication gate in `scripts/package_release.py`. The explicit
-  `--allow-dirty` option is limited to development builds and never includes untracked files.
-- `rooted-tree-catalan-closure-v<version>.SHA256SUMS`, covering the ZIP, ZIP sidecar,
-  SPDX document, and release metadata. Verification also requires the release directory to
-  contain exactly the five declared regular-file outputs and no symbolic links.
-- SPDX 2.3 file records with one canonical SHA-1 checksum plus SHA-256, together with the
-  package verification code computed independently by the producer and verifier.
-- Regression coverage for JSON exponent overflow and underflow, tracked symbolic links,
-  redirected output paths, Unicode formatting characters in archive names, excluded paths,
-  and checksum/SBOM tampering.
+This release fixes an interoperability defect in earlier source ZIPs: entries carried Unix
+permission bits but not the Unix regular-file type bit. It also upgrades the two recovery
+layers from syntactic verification to stronger producer, object, ref, tag, and document
+checks.
 
 ### Corrected
 
-- Strict JSON parsing now rejects finite-looking exponent literals that Python would silently
-  normalize to infinity or zero.
-- The standalone ZIP verifier rejects repository-internal and generated source paths even
-  when a forged internal manifest lists them.
-- `build.ps1` writes and inspects the PDF under `build/` by default; replacing the tracked PDF
-  requires the explicit `-RefreshTrackedPdf` switch.
-- `make verify` now includes independent release verification, matching the documented local
-  acceptance gate.
-- The PowerShell build and release-output policy are now machine-audited and recorded in
-  `project.json` schema 5 and release metadata schema 5.
+- Every source-ZIP entry now records `S_IFREG | 0644` or `S_IFREG | 0755`. The standalone
+  verifier rejects missing file-type bits, noncanonical permission bits, DOS attributes, and
+  UTF-8 flags that do not match the filename encoding.
+- Integrity-critical JSON must use one canonical byte representation: sorted keys, two-space
+  indentation, ASCII escapes, and exactly one final LF.
+
+### Added
+
+- Producer preflight resource ceilings and immediate verification of the just-written source
+  ZIP before secondary release artifacts are generated.
+- History inventory schema 3 with isolated mirror restoration, exact restored-ref parity,
+  dynamic SHA-1/SHA-256 object-ID validation, `git fsck --full --strict`, and an annotated
+  `v<version>` tag that must peel to the recorded `HEAD`.
+- Passive-PDF policy checks for a single revision, the exact archived PDF-1.5 identity, a
+  declared PDF-1.5/PDF-1.7 rebuild allowlist, exact geometry, no trailing payload, and no
+  encryption, JavaScript, forms, launch actions, rich media, or embedded files.
+- New regression tests for ZIP type-bit/UTF-8 drift, canonical JSON drift, lightweight release
+  tags, extra history outputs, PDF incremental updates, active content, and duplicate metadata.
 
 ### Formal boundary
 
-The engineering and recovery layers are stronger, but the theorem boundary is unchanged.
+The recovery and publication checks are stronger, but the mathematical status is unchanged.
 `YangMills.KP.RootedChildFactorialCatalanIdentity n` remains an explicit open general Lean
 obligation. No local axiom, `sorry`, or finite-computation overclaim is introduced.

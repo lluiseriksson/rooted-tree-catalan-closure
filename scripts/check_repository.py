@@ -15,8 +15,9 @@ from typing import Iterable
 
 from check_actions_pins import audit_workflows, load_policy
 from check_metadata_consistency import check_metadata_consistency
+from check_pdf import PDFCheckError, inspect_pdf_bytes
 from check_source_manifest import audit_source_manifest
-from strict_json import StrictJSONError, loads as strict_json_loads
+from strict_json import StrictJSONError, loads_canonical as strict_json_loads
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_FILES = (
@@ -67,6 +68,7 @@ REQUIRED_FILES = (
     "scripts/check_pdf.py",
     "scripts/check_repository.py",
     "scripts/check_metadata_consistency.py",
+    "scripts/check_pdf.py",
     "scripts/check_repackaging.py",
     "scripts/check_source_manifest.py",
     "scripts/strict_json.py",
@@ -78,6 +80,7 @@ REQUIRED_FILES = (
     "scripts/check_determinism.py",
     "scripts/verify_replay_logs.py",
     "scripts/create_history_bundle.py",
+    "scripts/history_integrity.py",
     "scripts/verify_history_bundle.py",
     "tests/test_artifact_tools.py",
     "tests/test_actions_pins.py",
@@ -85,6 +88,7 @@ REQUIRED_FILES = (
     "tests/test_replay_logs.py",
     "tests/test_history_bundle.py",
     "tests/test_metadata_consistency.py",
+    "tests/test_pdf_checks.py",
     "tests/test_release_integrity.py",
     "tests/test_strict_json.py",
     "tests/test_verify_source_zip.py",
@@ -110,6 +114,7 @@ EXPECTED_VERIFIED_DECLARATIONS = {
 }
 REQUIRED_CRITICAL_TOOLING = {
     "scripts/check_metadata_consistency.py",
+    "scripts/check_pdf.py",
     "scripts/check_repackaging.py",
     "scripts/check_repository.py",
     "scripts/check_source_manifest.py",
@@ -118,6 +123,9 @@ REQUIRED_CRITICAL_TOOLING = {
     "scripts/package_release.py",
     "scripts/release_integrity.py",
     "scripts/source_inventory.py",
+    "scripts/create_history_bundle.py",
+    "scripts/history_integrity.py",
+    "scripts/verify_history_bundle.py",
     "scripts/verify_release.py",
     "build.ps1",
 }
@@ -318,7 +326,7 @@ def main() -> int:
         audit.note("extracted source manifest verified against the complete distributable tree")
 
     project = strict_json_loads(read_text("project.json"), source="project.json")
-    audit.require(project.get("schema_version") == 5, "unsupported project.json schema")
+    audit.require(project.get("schema_version") == 6, "unsupported project.json schema")
     audit.require(project.get("name") == "rooted-tree-catalan-closure", "wrong project name")
     audit.require(project.get("default_branch") == "master", "default branch record is not master")
     audit.require(
@@ -329,7 +337,7 @@ def main() -> int:
     schema = strict_json_loads(read_text("schema/project.schema.json"), source="schema/project.schema.json")
     audit.require(schema.get("$schema") == "https://json-schema.org/draft/2020-12/schema", "project schema draft drift")
     audit.require(
-        schema.get("properties", {}).get("schema_version", {}).get("const") == 5,
+        schema.get("properties", {}).get("schema_version", {}).get("const") == 6,
         "project schema version contract drift",
     )
     audit.require("history_backup_outputs" in schema.get("required", []), "project schema omits history outputs")
@@ -386,6 +394,13 @@ def main() -> int:
         "release_output_exact_inventory",
         "spdx_2_3_conformant_checksums",
         "non_destructive_powershell_build",
+        "canonical_json_encoding",
+        "canonical_zip_utf8_flags",
+        "history_bundle_deep_fsck",
+        "history_release_tag_binding",
+        "passive_single_revision_pdf",
+        "producer_source_zip_self_verification",
+        "zip_regular_file_type_bits",
     ):
         audit.require(release_policy.get(key) is True, f"release policy does not enable {key}")
     schema_release_policy = schema.get("properties", {}).get("release_policy", {})
@@ -398,13 +413,20 @@ def main() -> int:
         "release_output_exact_inventory",
         "spdx_2_3_conformant_checksums",
         "tracked_git_files_only",
+        "canonical_json_encoding",
+        "canonical_zip_utf8_flags",
+        "history_bundle_deep_fsck",
+        "history_release_tag_binding",
+        "passive_single_revision_pdf",
+        "producer_source_zip_self_verification",
+        "zip_regular_file_type_bits",
     ):
         audit.require(
             schema_policy_properties.get(key, {}).get("const") is True
             and key in schema_policy_required,
             f"project schema does not require release policy {key}",
         )
-    audit.require(project.get("history_inventory_schema") == 2, "history inventory schema drift")
+    audit.require(project.get("history_inventory_schema") == 3, "history inventory schema drift")
     actions_policy_rel = project.get("actions_policy")
     audit.require(actions_policy_rel == "archive/github-actions-policy.json", "actions-policy path drift")
     boundary = project.get("claim_boundary", {})
@@ -459,10 +481,37 @@ def main() -> int:
             actual = git_blob_sha(path.read_bytes())
             audit.require(actual == expected, f"critical blob mismatch for {rel}: {actual} != {expected}")
 
-    pdf = (ROOT / "Rooted_tree_Catalan_closure.pdf").read_bytes()
-    audit.require(pdf.startswith(b"%PDF-"), "compiled manuscript is not a PDF")
-    audit.require(len(pdf) >= 50_000, "compiled manuscript is unexpectedly small")
-    audit.require(b"%%EOF" in pdf[-4096:], "compiled manuscript has no terminal EOF marker")
+    pdf_path = ROOT / "Rooted_tree_Catalan_closure.pdf"
+    try:
+        pdf_report = inspect_pdf_bytes(pdf_path.read_bytes())
+    except (OSError, PDFCheckError) as exc:
+        audit.errors.append(f"compiled manuscript PDF policy failure: {exc}")
+        pdf_report = {}
+    manuscript_pdf = project.get("manuscript_pdf", {})
+    audit.require(
+        manuscript_pdf
+        == {
+            "active_content": False,
+            "author": "Lluis Eriksson",
+            "embedded_files": False,
+            "encrypted": False,
+            "file": "Rooted_tree_Catalan_closure.pdf",
+            "forms": False,
+            "incremental_updates": False,
+            "javascript": False,
+            "page_size": "A4",
+            "pages": 17,
+            "pdf_version": "1.5",
+            "rebuild_pdf_versions": ["1.5", "1.7"],
+            "title": "Rooted-tree summation and Catalan closure for polymer cluster expansions with holes",
+        },
+        "manuscript PDF contract drift",
+    )
+    if pdf_report:
+        audit.require(
+            pdf_report.get("pdf_version") == manuscript_pdf.get("pdf_version"),
+            "compiled manuscript PDF header version drift",
+        )
 
     for rel in LEAN_FILES:
         stripped = strip_lean_comments_and_strings(read_text(rel))
@@ -617,6 +666,11 @@ def main() -> int:
         "make verify does not include independent release verification",
     )
     audit.require("json.load" not in makefile, "Makefile bypasses strict JSON parsing")
+    audit.require("load_canonical" in makefile, "Makefile version guard does not require canonical JSON")
+    audit.require(
+        makefile.count("scripts/check_pdf.py $(BUILT_PDF) --rebuilt --require-tools") >= 2,
+        "paper build targets do not require the full PDF inspection toolchain",
+    )
 
     powershell_build = read_text("build.ps1")
     audit.require(
@@ -634,8 +688,11 @@ def main() -> int:
         "packageVerificationCode" in package_source
         and '"algorithm": "SHA1"' in package_source
         and "release_checksum_payload" in package_source
-        and "reject_symlink_outputs" in package_source,
-        "release packager lacks SPDX 2.3 file hashes, package verification code, or full checksums",
+        and "reject_symlink_outputs" in package_source
+        and "stat.S_IFREG" in package_source
+        and "validate_source_payload_limits" in package_source
+        and "verify_source_zip(" in package_source,
+        "release packager lacks canonical regular-file modes, producer preflight/self-verification, SPDX data, or full checksums",
     )
     audit.require(
         "require_clean_git_source" in package_source and "--allow-dirty" in package_source,
@@ -654,15 +711,21 @@ def main() -> int:
     )
     integrity_source = read_text("scripts/release_integrity.py")
     audit.require(
-        "validate_portable_relative_path" in integrity_source and "safe_extract_members" in integrity_source,
-        "release verifier lacks portable-path or safe-extraction hardening",
+        "validate_portable_relative_path" in integrity_source
+        and "safe_extract_members" in integrity_source
+        and "stat.S_ISREG" in integrity_source
+        and "expected_utf8_flag" in integrity_source
+        and "validate_source_payload_limits" in integrity_source,
+        "release verifier lacks portable paths, safe extraction, regular-file metadata, canonical flags, or producer limits",
     )
     strict_source = read_text("scripts/strict_json.py")
     audit.require(
         "parse_float=finite_float" in strict_source
         and "math.isfinite" in strict_source
-        and "exact.is_zero" in strict_source,
-        "strict JSON parser does not reject exponent overflow or underflow",
+        and "exact.is_zero" in strict_source
+        and "canonical_dumps" in strict_source
+        and "loads_canonical" in strict_source,
+        "strict JSON parser does not reject numeric drift or enforce canonical encoding",
     )
     verifier_source = read_text("scripts/verify_release.py")
     audit.require("run_extracted_self_audit" in verifier_source, "release verifier does not audit the extracted source archive")
@@ -683,8 +746,26 @@ def main() -> int:
     )
     history_verifier_source = read_text("scripts/verify_history_bundle.py")
     audit.require(
-        "list-heads" in history_verifier_source and "bundle_heads" in history_verifier_source,
-        "history verifier does not compare the exact Git bundle head inventory",
+        "list-heads" in history_verifier_source
+        and "bundle_heads" in history_verifier_source
+        and "deep_verify_bundle" in history_verifier_source
+        and "release_tag_annotated" in history_verifier_source,
+        "history verifier does not require exact heads, deep restoration, or annotated tag binding",
+    )
+    history_integrity_source = read_text("scripts/history_integrity.py")
+    audit.require(
+        "git fsck --full --strict" in history_integrity_source
+        and '"clone", "--mirror", "--no-local"' in history_integrity_source
+        and "refs/tags/v" in history_integrity_source,
+        "history deep-integrity helper omits strict fsck, mirror restoration, or release-tag checks",
+    )
+    pdf_checker_source = read_text("scripts/check_pdf.py")
+    audit.require(
+        "ACTIVE_PDF_TOKENS" in pdf_checker_source
+        and "pdfdetach" in pdf_checker_source
+        and "startxref" in pdf_checker_source
+        and "--require-tools" in pdf_checker_source,
+        "PDF checker omits passive-content, attachment, or single-revision enforcement",
     )
 
     try:
@@ -734,7 +815,7 @@ def main() -> int:
     audit.require("actions/attest-build-provenance@" in release, "tagged release lacks provenance attestations")
     audit.require("history-release/*" in release, "tagged release omits full-history recovery artifacts")
     audit.require(
-        "from strict_json import load" in release and "json.load" not in release,
+        "from strict_json import load_canonical" in release and "json.load" not in release,
         "tag/version release guard bypasses strict JSON parsing",
     )
     dependabot = read_text(".github/dependabot.yml")
@@ -762,7 +843,7 @@ def main() -> int:
         return 1
     print(
         "repository audit passed: provenance, critical blobs, conditional Lean boundary, "
-        "finite evidence, theorem manifest, source/history recovery, standalone ZIP and strict JSON safety, workflows, PDF, tooling, links, and metadata are consistent"
+        "finite evidence, theorem manifest, producer/source ZIP integrity, canonical JSON and Unix metadata, deep Git restoration, passive PDF safety, workflows, tooling, links, and metadata are consistent"
     )
     return 0
 

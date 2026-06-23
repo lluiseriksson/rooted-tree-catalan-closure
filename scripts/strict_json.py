@@ -69,3 +69,37 @@ def load(path: Path) -> Any:
     except (OSError, UnicodeDecodeError) as exc:
         raise StrictJSONError(f"cannot read JSON file {path}: {exc}") from exc
     return loads(text, source=str(path))
+
+
+def canonical_dumps(value: Any) -> str:
+    """Return the repository's byte-stable, newline-terminated JSON encoding."""
+    try:
+        return json.dumps(
+            value,
+            indent=2,
+            sort_keys=True,
+            ensure_ascii=True,
+            allow_nan=False,
+        ) + "\n"
+    except (TypeError, ValueError, OverflowError, RecursionError) as exc:
+        raise StrictJSONError(f"value cannot be encoded as canonical JSON: {exc}") from exc
+
+
+def loads_canonical(text: str, *, source: str = "<string>") -> Any:
+    """Strictly parse JSON and require the exact canonical repository encoding."""
+    value = loads(text, source=source)
+    if text != canonical_dumps(value):
+        raise StrictJSONError(
+            f"noncanonical JSON encoding in {source}; use sorted keys, two-space indentation, "
+            "ASCII escapes, and one final newline"
+        )
+    return value
+
+
+def load_canonical(path: Path) -> Any:
+    """Read one UTF-8 JSON file and require its canonical byte representation."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise StrictJSONError(f"cannot read JSON file {path}: {exc}") from exc
+    return loads_canonical(text, source=str(path))

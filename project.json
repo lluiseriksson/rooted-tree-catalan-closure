@@ -1,7 +1,7 @@
 {
   "actions_policy": "archive/github-actions-policy.json",
   "archived_build_marker": "Build completed successfully (8235 jobs).",
-  "artifact_boundary": "The manuscript proves the combinatorial identity on paper and the repository contains a checked downstream Lean adapter. Exact finite computations independently verify orders n=0 through n=8; publication source releases are built only from tracked files in a clean Git worktree, carry a complete SHA-256 output inventory and an SPDX 2.3 file/package verification profile, and remain directly verifiable without trusting host-extracted permissions. Git history backups are checked against their exact bundle-head inventory. The general Lean proof remains an explicit obligation.",
+  "artifact_boundary": "The manuscript proves the combinatorial identity on paper and the repository contains a checked downstream Lean adapter. Exact finite computations independently verify orders n=0 through n=8; publication source releases are built only from tracked files in a clean Git worktree, use canonical regular-file ZIP metadata, self-verify before emission, carry canonical JSON and a complete SHA-256 output inventory, and remain directly verifiable without trusting host-extracted permissions. Git history backups are mirror-restored, checked by strict full-object fsck, compared against their exact refs, and bound to the annotated release tag. The manuscript PDF is checked as a passive single-revision 17-page A4 document. The general Lean proof remains an explicit obligation.",
   "artifact_state": "recovered_publication_bundle",
   "claim_boundary": {
     "closed_exact_catalan_identity": false,
@@ -11,11 +11,11 @@
     "yang_mills_raw_activity": false
   },
   "critical_git_blobs": {
-    "Makefile": "3bfa237d229b3238492de289fc96bc6e895169cb",
+    "Makefile": "459aa126e7caa6047e2921ca368aacc391617cc4",
     "Rooted_tree_Catalan_closure.pdf": "dc4d0e680fda01cff2732cbd0b3e1d5cebf4ad98",
-    "archive/github-actions-policy.json": "ad6384da6e2e722fb63986c7c4816aedcc1f3efa",
-    "archive/theorem-manifest.json": "93912e9b572a6326e37c6cc9cb34e064ddd45b09",
-    "build.ps1": "aa0db0ce55b0236a51756f4efd42a113f122033a",
+    "archive/github-actions-policy.json": "d8767c08617272faed58f0eb8ba4bdeac5767906",
+    "archive/theorem-manifest.json": "9659b5c867cf30b050430fc4eca1bf0395cafc05",
+    "build.ps1": "c2001564cdbeb1733f6507c20d34c489907b3703",
     "evidence/finite-catalan-checks.json": "8555fd8a912219b4f194eb93b890f22334443eef",
     "lean-patch/YangMills/KP/RootedCatalan.lean": "5b0aa2902213020d995b77147bc44216e29c3fd4",
     "lean-patch/YangMills/RG/AppendixFHsharpCatalanClosure.lean": "1e50682a6feb00836013edeaa71ba59599e2af06",
@@ -25,23 +25,25 @@
     "lean-patch/verification/catalan-build.log": "b2241464ad31d8804dfdb5c39914b32813e7dc1d",
     "lean-patch/verification/oracle_check_catalan.log": "225e4d612b1aa5f30ca82be4b7233da08c9cfc52",
     "main.tex": "190b09ba24e4d2b1f62df3646d87035cf9f89451",
-    "schema/project.schema.json": "6903370e369e3f4743cbcec6b9b3d15f50f9a737",
-    "scripts/check_actions_pins.py": "ce93b04d22e511edc41f4ae33a4c44949a1963a9",
+    "schema/project.schema.json": "08b2831daa6f2e0cd29bd34eaec4cd9b892fb239",
+    "scripts/check_actions_pins.py": "f0ea93c3e4373b50d02eab4f968ff59dfefe320c",
     "scripts/check_determinism.py": "92461028cbdf3e75912a2c51474200200b45253e",
     "scripts/check_finite_catalan.py": "1a11bb9149ae16ea72cf2b58b84e6f3a0afc4440",
-    "scripts/check_metadata_consistency.py": "193eff527f210e395542f0651f093d5bcb980f6d",
-    "scripts/check_repackaging.py": "0534c7c4fb3411a39d987f1580a5fbe431bc71de",
-    "scripts/check_repository.py": "5b3bcf6df442b05ab2d7dc505d584982a4d0b050",
+    "scripts/check_metadata_consistency.py": "2b765a964621510ec8d5c42da26083e99f362791",
+    "scripts/check_pdf.py": "ff097913cfaaa3fc1174dca9fe9922ba0ebb5360",
+    "scripts/check_repackaging.py": "bde3ee89fa1df10749f0e13cbc54cdaa3ea041b7",
+    "scripts/check_repository.py": "87c2ae835284c39d6142b0174bd6f0b877387338",
     "scripts/check_source_manifest.py": "5dd96107624bf09f667e51b4453ffd833cea342e",
-    "scripts/create_history_bundle.py": "da86b6b8df118a528d71351aff02daef1949733f",
-    "scripts/package_release.py": "1a3968987f90ecdff7be316a6ed4410bed984cb4",
-    "scripts/release_integrity.py": "c8c586d99103abd6122e7144e313384c6ab8e2ea",
+    "scripts/create_history_bundle.py": "9bafe2800c0b884d74c331b044ac74fc69d2593c",
+    "scripts/history_integrity.py": "c14205bdf538d98a0e94c91ab2750494c3c145f0",
+    "scripts/package_release.py": "5500ad4d31ce8b6ffed60677f80db5b5ef2d3eea",
+    "scripts/release_integrity.py": "e4aa908aa7708149c5dac5114589720cce6f419d",
     "scripts/source_inventory.py": "e3ec566e73fc05b839beecbc111de4a335bc1b31",
-    "scripts/strict_json.py": "e140fe24c417fb854fbcbba87bbd1f40afb253e3",
-    "scripts/verify_history_bundle.py": "85f28c5a4e02d139a7a2e9b956946349e2bfbab5",
-    "scripts/verify_release.py": "020236ef0a3d1c1b889a4913eee3c1797f692f54",
+    "scripts/strict_json.py": "0cf6b12f23d79ad8fcd749b667389289e7b2e0aa",
+    "scripts/verify_history_bundle.py": "89002dbde249686255f6440653545f3ac441299f",
+    "scripts/verify_release.py": "b41d4f32ef0ce2cdbb80888ae61a9803cd6203fe",
     "scripts/verify_replay_logs.py": "cb396b67a292af36e6b2fbfaad427f4b9972bfb5",
-    "scripts/verify_source_zip.py": "791b5dd7eea515b1656d52600162a16dbcb8a643"
+    "scripts/verify_source_zip.py": "30e417f10ae23da01e64ad0d80b0f7e4b326faa3"
   },
   "default_branch": "master",
   "expected_axioms": [
@@ -68,26 +70,45 @@
     "recovery_hardening_v1_3_commit": "1f2666a7f34f8fed57295e49d4c236f06a22e7cc",
     "recovery_hardening_v1_4_1_commit": "27c48960e8ae1b1ebfaafee4c210c26a1f2883e4",
     "recovery_hardening_v1_5_0_commit": "abb07be764efe6d208acafa9bdba443195ad7009",
-    "recovery_hardening_v1_6_0_commit": "c06d8fddafd0a3b513712fcc8b1be144ff62f8f9"
+    "recovery_hardening_v1_6_0_commit": "c06d8fddafd0a3b513712fcc8b1be144ff62f8f9",
+    "recovery_hardening_v1_7_0_commit": "6090393211b7b4684db145fb1010b0cec8497832"
   },
   "history_backup_outputs": [
     "rooted-tree-catalan-closure-v{version}-history.bundle",
     "rooted-tree-catalan-closure-v{version}.history.json",
     "rooted-tree-catalan-closure-v{version}.history.SHA256SUMS"
   ],
-  "history_inventory_schema": 2,
+  "history_inventory_schema": 3,
   "licenses": {
     "code_and_tooling": "AGPL-3.0-or-later",
     "manuscript_and_original_documentation": "CC-BY-4.0"
   },
+  "manuscript_pdf": {
+    "active_content": false,
+    "author": "Lluis Eriksson",
+    "embedded_files": false,
+    "encrypted": false,
+    "file": "Rooted_tree_Catalan_closure.pdf",
+    "forms": false,
+    "incremental_updates": false,
+    "javascript": false,
+    "page_size": "A4",
+    "pages": 17,
+    "pdf_version": "1.5",
+    "rebuild_pdf_versions": [
+      "1.5",
+      "1.7"
+    ],
+    "title": "Rooted-tree summation and Catalan closure for polymer cluster expansions with holes"
+  },
   "name": "rooted-tree-catalan-closure",
   "recovery_baseline_commit": "27c48960e8ae1b1ebfaafee4c210c26a1f2883e4",
-  "recovery_generation": 8,
+  "recovery_generation": 9,
   "recovery_policy": {
-    "git_history": "verified git bundle with ref inventory and SHA-256 checksums",
+    "git_history": "verified Git bundle with exact ref inventory, annotated release-tag binding, mirror restoration, strict full-object fsck, and SHA-256 checksums",
     "history_bundle_byte_reproducibility_claim": false,
     "off_site_storage_recommended": true,
-    "source_tree": "tracked-only clean-worktree deterministic ZIP_STORED archive with an internal source manifest, complete release SHA-256 inventory, SPDX 2.3 verification data, and a standalone permission-independent verifier"
+    "source_tree": "tracked-only clean-worktree deterministic ZIP_STORED archive with canonical Unix regular-file metadata, canonical JSON, producer self-verification, an internal source manifest, complete release SHA-256 inventory, SPDX 2.3 verification data, and a standalone permission-independent verifier"
   },
   "release_date": "2026-06-23",
   "release_outputs": [
@@ -100,15 +121,21 @@
   "release_policy": {
     "archive_method": "ZIP_STORED",
     "archive_resource_limits": true,
+    "canonical_json_encoding": true,
+    "canonical_zip_utf8_flags": true,
     "clean_git_worktree_required": true,
     "complete_release_checksums": true,
     "cross_runtime_byte_determinism": true,
     "github_provenance_attestations": true,
+    "history_bundle_deep_fsck": true,
     "history_bundle_exact_head_inventory": true,
+    "history_release_tag_binding": true,
     "host_extracted_modes_authoritative": false,
     "non_destructive_powershell_build": true,
     "normalized_timestamp": "release_date at 00:00:00 UTC",
+    "passive_single_revision_pdf": true,
     "portable_archive_paths": true,
+    "producer_source_zip_self_verification": true,
     "release_output_exact_inventory": true,
     "source_archive_repackaging": true,
     "source_archive_self_audit": true,
@@ -116,7 +143,8 @@
     "spdx_2_3_conformant_checksums": true,
     "standalone_source_zip_verifier": true,
     "strict_json_metadata": true,
-    "tracked_git_files_only": true
+    "tracked_git_files_only": true,
+    "zip_regular_file_type_bits": true
   },
   "repository": "https://github.com/lluiseriksson/rooted-tree-catalan-closure",
   "required_checks": [
@@ -139,9 +167,16 @@
     "publication packages use tracked Git files only and require a clean worktree",
     "complete release SHA256SUMS and exact release-directory output inventory",
     "SPDX 2.3 file SHA1 checksums and package verification code with SHA256 trust anchors",
-    "non-destructive PowerShell paper build with explicit tracked-PDF refresh"
+    "non-destructive PowerShell paper build with explicit tracked-PDF refresh",
+    "canonical JSON encoding for integrity-critical repository and generated metadata",
+    "canonical ZIP Unix regular-file type bits and filename-dependent UTF-8 flags",
+    "producer-side source ZIP self-verification and preflight resource ceilings",
+    "deep Git bundle mirror restoration with git fsck --full --strict and exact refs",
+    "annotated v<version> release tag in the history bundle bound to HEAD",
+    "passive single-revision manuscript PDF with exact title, author, pages, A4 size, and no attachments",
+    "archived PDF 1.5 identity plus declared rebuild PDF-version allowlist"
   ],
-  "schema_version": 5,
+  "schema_version": 6,
   "status": "recovered_conditional_publication_artifact",
   "theorem_manifest": "archive/theorem-manifest.json",
   "title": "Rooted-tree summation and Catalan closure",
@@ -163,5 +198,5 @@
     "YangMills.RG.catalanClosure_fixedPoint",
     "YangMills.RG.appendixFHoleHsharpWeightedTreeMarkedRootSum_le_catalan_of_expWeight"
   ],
-  "version": "1.7.0"
+  "version": "1.8.0"
 }

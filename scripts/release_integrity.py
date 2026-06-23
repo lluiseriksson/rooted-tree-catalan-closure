@@ -175,6 +175,32 @@ def archive_members(
     return members
 
 
+def validate_source_payload_limits(
+    file_sizes: Sequence[tuple[str, int]],
+    manifest_size: int,
+) -> tuple[int, int]:
+    """Fail before writing when producer inputs exceed the verifier's archive ceilings."""
+    entry_count = len(file_sizes) + 1  # SOURCE-MANIFEST.sha256 is also archived.
+    if entry_count > MAX_ARCHIVE_FILES:
+        raise IntegrityError(
+            f"source package would contain too many entries: {entry_count} > {MAX_ARCHIVE_FILES}"
+        )
+    total = 0
+    for path, size in file_sizes:
+        validate_portable_relative_path(path)
+        if not isinstance(size, int) or size < 0:
+            raise IntegrityError(f"source file has an invalid size: {path}: {size!r}")
+        if size > MAX_ARCHIVE_FILE_BYTES:
+            raise IntegrityError(f"source file is too large: {path}: {size} bytes")
+        total += size
+    if manifest_size < 0 or manifest_size > MAX_ARCHIVE_FILE_BYTES:
+        raise IntegrityError(f"source manifest is too large: {manifest_size} bytes")
+    total += manifest_size
+    if total > MAX_ARCHIVE_TOTAL_BYTES:
+        raise IntegrityError(f"source package would expand beyond the limit: {total} bytes")
+    return entry_count, total
+
+
 def validate_archive_resource_limits(infos: Sequence[zipfile.ZipInfo]) -> tuple[int, int]:
     """Reject source archives with implausible file counts or expanded sizes."""
     if len(infos) > MAX_ARCHIVE_FILES:
@@ -211,17 +237,33 @@ def validate_zip_info(
     if info.create_version != 20 or info.extract_version != 20:
         raise IntegrityError(f"ZIP entry has noncanonical version metadata: {info.filename}")
     raw_mode = info.external_attr >> 16
-    if raw_mode not in {0o644, 0o755} or (info.external_attr & 0xFFFF):
-        raise IntegrityError(f"unexpected ZIP mode/attributes {hex(info.external_attr)}: {info.filename}")
+    if not stat.S_ISREG(raw_mode):
+        raise IntegrityError(f"ZIP entry is not marked as a regular Unix file: {info.filename}")
+    permissions = stat.S_IMODE(raw_mode)
+    if permissions not in {0o644, 0o755} or raw_mode != stat.S_IFREG | permissions:
+        raise IntegrityError(
+            f"unexpected ZIP Unix mode {oct(raw_mode)}: {info.filename}"
+        )
+    if info.external_attr & 0xFFFF:
+        raise IntegrityError(
+            f"unexpected ZIP DOS attributes {hex(info.external_attr & 0xFFFF)}: {info.filename}"
+        )
+    try:
+        info.filename.encode("ascii")
+        expected_utf8_flag = 0
+    except UnicodeEncodeError:
+        expected_utf8_flag = 0x800
+    if info.flag_bits != expected_utf8_flag:
+        raise IntegrityError(
+            f"ZIP UTF-8 flag policy mismatch {hex(info.flag_bits)}: {info.filename}"
+        )
     if info.extra:
         raise IntegrityError(f"ZIP entry contains noncanonical extra metadata: {info.filename}")
     if info.comment:
         raise IntegrityError(f"ZIP entry contains a comment: {info.filename}")
     if info.internal_attr != 0 or info.volume != 0:
         raise IntegrityError(f"ZIP entry contains noncanonical internal metadata: {info.filename}")
-    if info.flag_bits not in {0, 0x800}:
-        raise IntegrityError(f"ZIP entry has unsupported flags {hex(info.flag_bits)}: {info.filename}")
-    return stat.S_IMODE(raw_mode)
+    return permissions
 
 
 def safe_extract_members(

@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.8.0 - 2026-06-23
+
+- Corrected source-ZIP Unix metadata to include the regular-file type bit together with
+  canonical `0644`/`0755` permissions and filename-dependent UTF-8 flags.
+- Added producer-side archive ceilings and immediate standalone verification of every source
+  ZIP before its SBOM and release metadata are emitted.
+- Required canonical, sorted, newline-terminated JSON for tracked and generated
+  integrity-critical metadata, closing whitespace/order normalization ambiguity.
+- Upgraded history inventory to schema 3: bundles are mirror-restored in an isolated Git
+  environment, checked with `git fsck --full --strict`, compared against the exact restored
+  ref set, and bound to the annotated `v<version>` tag at `HEAD`.
+- Hardened manuscript inspection with the exact archived 17-page A4/PDF-1.5 identity,
+  an explicit PDF-1.5/PDF-1.7 rebuild allowlist, one PDF revision, no trailing payload,
+  and no encryption, JavaScript, forms, actions, or embedded files.
+- Added regression coverage and machine-audited policy/schema fields for the new ZIP, JSON,
+  PDF, and Git recovery invariants.
+
 ## 1.7.0 - 2026-06-23
 
 - Restricted publication packages to tracked regular files from a clean Git worktree;
