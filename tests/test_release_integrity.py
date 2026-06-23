@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -12,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from check_source_manifest import audit_source_manifest
-from package_release import spdx_id, zip_info
+from package_release import require_clean_git_source, spdx_id, zip_info
 from release_integrity import (
     MAX_ARCHIVE_FILE_BYTES,
     IntegrityError,
@@ -25,8 +26,17 @@ from release_integrity import (
     validate_portable_relative_path,
     validate_zip_info,
 )
-from source_inventory import EXCLUDED_NAMES, repository_files
-from verify_release import sbom_file_records
+from source_inventory import (
+    EXCLUDED_NAMES,
+    git_worktree_status,
+    repository_files,
+    source_exclusion_reason,
+)
+from verify_release import (
+    sbom_file_records,
+    validate_release_output_directory,
+    verify_release_checksum_inventory,
+)
 
 
 class ReleaseIntegrityTests(unittest.TestCase):
@@ -49,6 +59,8 @@ class ReleaseIntegrityTests(unittest.TestCase):
             "bad:name",
             "trailing. ",
             "cafe\u0301.txt",
+            "line\u2028separator.txt",
+            "bidi\u202espell.txt",
         ):
             with self.subTest(path=path), self.assertRaises(IntegrityError):
                 validate_portable_relative_path(path)
@@ -81,6 +93,49 @@ class ReleaseIntegrityTests(unittest.TestCase):
             (root / "release" / "skip.zip").write_bytes(b"zip")
             selected = [path.relative_to(root).as_posix() for path in repository_files(root, root / "release")]
             self.assertEqual(selected, ["src/keep.py"])
+
+    @unittest.skipUnless(shutil.which("git"), "git executable required")
+    def test_git_inventory_is_tracked_only_and_reports_dirty_state(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=root, check=True)
+            (root / "tracked.txt").write_text("tracked\n", encoding="utf-8")
+            subprocess.run(["git", "add", "tracked.txt"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "fixture"], cwd=root, check=True)
+            self.assertEqual(git_worktree_status(root), b"")
+
+            (root / "untracked-secret.txt").write_text("secret\n", encoding="utf-8")
+            selected = [path.relative_to(root).as_posix() for path in repository_files(root)]
+            self.assertEqual(selected, ["tracked.txt"])
+            self.assertTrue(git_worktree_status(root))
+            with self.assertRaisesRegex(Exception, "dirty Git worktree"):
+                require_clean_git_source(root, allow_dirty=False)
+            require_clean_git_source(root, allow_dirty=True)
+
+    @unittest.skipUnless(shutil.which("git"), "git executable required")
+    def test_tracked_symbolic_links_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=root, check=True)
+            (root / "target.txt").write_text("target\n", encoding="utf-8")
+            try:
+                (root / "link.txt").symlink_to("target.txt")
+            except OSError as exc:
+                self.skipTest(f"symbolic links unavailable: {exc}")
+            subprocess.run(["git", "add", "target.txt", "link.txt"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "fixture"], cwd=root, check=True)
+            with self.assertRaisesRegex(Exception, "tracked symbolic links"):
+                repository_files(root)
+
+    def test_distribution_policy_rejects_repository_internal_paths(self) -> None:
+        self.assertIsNotNone(source_exclusion_reason(".git/config"))
+        self.assertIsNotNone(source_exclusion_reason("release/old.zip"))
+        self.assertIsNotNone(source_exclusion_reason("nested/__pycache__/cache.pyc"))
+        self.assertIsNone(source_exclusion_reason("scripts/check_repository.py"))
 
     def test_extracted_source_manifest_detects_drift(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -124,11 +179,62 @@ class ReleaseIntegrityTests(unittest.TestCase):
         entry = {
             "SPDXID": spdx_id("README.md"),
             "fileName": "./README.md",
-            "checksums": [{"algorithm": "SHA256", "checksumValue": digest}],
+            "checksums": [
+                {"algorithm": "SHA1", "checksumValue": "1" * 40},
+                {"algorithm": "SHA256", "checksumValue": digest},
+            ],
         }
         with self.assertRaises(IntegrityError):
             sbom_file_records({"files": [entry, dict(entry)]})
-        self.assertEqual(sbom_file_records({"files": [entry]}), {"README.md": digest})
+        self.assertEqual(
+            sbom_file_records({"files": [entry]}),
+            {"README.md": {"SHA1": "1" * 40, "SHA256": digest}},
+        )
+
+    def test_complete_release_checksum_inventory_detects_tampering(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            archive = root / "artifact.zip"
+            metadata = root / "artifact.json"
+            archive.write_bytes(b"zip")
+            metadata.write_bytes(b"metadata")
+            sums = root / "artifact.SHA256SUMS"
+            sums.write_bytes(
+                format_source_manifest(
+                    [
+                        (archive.name, sha256(archive.read_bytes())),
+                        (metadata.name, sha256(metadata.read_bytes())),
+                    ]
+                )
+            )
+            verify_release_checksum_inventory(sums, [archive, metadata])
+            metadata.write_bytes(b"changed")
+            with self.assertRaisesRegex(IntegrityError, "checksum mismatch"):
+                verify_release_checksum_inventory(sums, [archive, metadata])
+
+    def test_release_output_directory_requires_exact_regular_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            expected = {"artifact.zip", "artifact.SHA256SUMS"}
+            for name in expected:
+                (root / name).write_bytes(name.encode("ascii"))
+            validate_release_output_directory(root, expected)
+
+            extra = root / "unexpected"
+            extra.mkdir()
+            with self.assertRaisesRegex(IntegrityError, "non-regular output entries"):
+                validate_release_output_directory(root, expected)
+            extra.rmdir()
+
+            target = root / "target"
+            target.write_bytes(b"target")
+            link = root / "redirected"
+            try:
+                link.symlink_to(target)
+            except OSError as exc:
+                self.skipTest(f"symbolic links unavailable: {exc}")
+            with self.assertRaisesRegex(IntegrityError, "non-regular output entries"):
+                validate_release_output_directory(root, expected | {"target", "redirected"})
 
     def test_spdx_ids_are_collision_resistant(self) -> None:
         self.assertNotEqual(spdx_id("a/b.txt"), spdx_id("a-b.txt"))

@@ -22,6 +22,14 @@
     of truth; use the standalone source-ZIP verifier.
 11. Parse integrity-critical JSON strictly and preserve exact `git bundle list-heads` parity
     in history inventories.
+12. Build publication ZIPs only from tracked regular files in a clean Git worktree. Never
+    use `--allow-dirty` for a public or archival release, and never permit tracked symbolic
+    links or silent omissions.
+13. Preserve the exact five-file release inventory and its complete `SHA256SUMS`. Release
+    outputs must be regular files, and the SPDX 2.3 document must retain canonical SHA-1,
+    additional SHA-256, and package-verification-code checks.
+14. Keep `build.ps1` non-destructive by default; replacing the tracked PDF requires the
+    explicit `-RefreshTrackedPdf` switch.
 
 ## Immutable pins
 

@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import json
+import math
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +15,12 @@ class StrictJSONError(ValueError):
 
 
 def loads(text: str, *, source: str = "<string>") -> Any:
-    """Parse JSON while rejecting constructs hidden by the default decoder."""
+    """Parse JSON while rejecting constructs hidden by the default decoder.
+
+    Python's standard decoder accepts the non-standard ``NaN``/``Infinity`` tokens and
+    also turns an otherwise valid JSON exponent such as ``1e999`` into positive infinity.
+    Both forms are rejected here so integrity metadata never contains a non-finite value.
+    """
 
     def object_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
         result: dict[str, Any] = {}
@@ -26,13 +33,32 @@ def loads(text: str, *, source: str = "<string>") -> Any:
     def reject_constant(value: str) -> Any:
         raise StrictJSONError(f"non-finite JSON number {value!r} in {source}")
 
+    def finite_float(value: str) -> float:
+        parsed = float(value)
+        if not math.isfinite(parsed):
+            raise StrictJSONError(f"non-finite JSON number {value!r} in {source}")
+        try:
+            exact = Decimal(value)
+        except InvalidOperation as exc:
+            raise StrictJSONError(f"invalid JSON number {value!r} in {source}") from exc
+        if parsed == 0.0 and not exact.is_zero():
+            raise StrictJSONError(
+                f"JSON number underflows the binary float range {value!r} in {source}"
+            )
+        return parsed
+
     try:
         return json.loads(
             text,
             object_pairs_hook=object_pairs,
             parse_constant=reject_constant,
+            parse_float=finite_float,
         )
+    except StrictJSONError:
+        raise
     except json.JSONDecodeError as exc:
+        raise StrictJSONError(f"invalid JSON in {source}: {exc}") from exc
+    except (OverflowError, RecursionError, ValueError) as exc:
         raise StrictJSONError(f"invalid JSON in {source}: {exc}") from exc
 
 

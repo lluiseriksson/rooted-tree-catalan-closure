@@ -17,6 +17,11 @@ make history-bundle
 make verify-history
 ```
 
+Run publication packaging from a clean Git worktree. The release inventory is tracked-file
+only; `--allow-dirty` is for local development diagnostics and must not be used for a public
+or archival release. Tracked symbolic links, missing files, and other non-regular entries are
+release errors rather than silently omitted inputs.
+
 For TeX changes, also run:
 
 ```sh
@@ -25,6 +30,8 @@ make paper-check
 
 Use `make paper-refresh` only when intentionally replacing the tracked recovered PDF;
 update its critical Git blob and provenance record in the same change.
+PowerShell users should run `./build.ps1`; use `-RefreshTrackedPdf` only for the same explicit
+archival replacement.
 
 ## Finite evidence changes
 
@@ -86,6 +93,10 @@ Release ZIP changes must preserve canonical POSIX paths, cross-platform filename
 case-insensitive uniqueness, normalized metadata, safe manual extraction, and exact manifest,
 SBOM, and working-tree parity. Add a regression test for every newly accepted or rejected
 archive form.
+
+The release directory must contain exactly the five declared regular-file outputs. Preserve
+the complete `SHA256SUMS`, the one-record ZIP sidecar, canonical SPDX 2.3 SHA-1/SHA-256 file
+checksums, and the package verification code. SHA-256 remains the release trust anchor.
 
 
 ## Permission-independent archive verification

@@ -26,3 +26,13 @@ On Windows, extracted filesystem modes are not used as proof of the executable p
 source ZIP verifier checks the normalized 0644/0755 attributes in the archive itself; safe
 extraction only reapplies those modes on POSIX. This keeps validation consistent across
 Python 3.11–3.13 and across host permission models.
+
+`build.ps1` follows the same publication contract as the Makefile. It writes the rebuilt
+manuscript to `build/Rooted_tree_Catalan_closure.pdf`, executes `scripts/check_pdf.py`, and
+does not replace the tracked recovered PDF unless `-RefreshTrackedPdf` is supplied. The
+repository audit and unit suite guard this behavior.
+
+Publication packaging uses Git's tracked-file inventory rather than filesystem discovery and
+requires a clean worktree. This makes source selection independent of ignored files, editor
+state, and platform-specific caches. Extracted source archives, which deliberately have no
+`.git` directory, use the shared filtered recursive policy and reproduce the same bytes.

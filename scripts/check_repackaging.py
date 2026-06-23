@@ -94,8 +94,8 @@ def main() -> int:
         return 1
 
     print(
-        "source repackaging passed: extracted release reproduces ZIP, checksum, SPDX SBOM, "
-        "and release metadata byte for byte"
+        "source repackaging passed: extracted release reproduces ZIP, sidecar, SPDX SBOM, "
+        "release metadata, and complete SHA256SUMS byte for byte"
     )
     return 0
 

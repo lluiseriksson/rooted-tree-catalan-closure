@@ -24,18 +24,19 @@ Generated files are placed in `release/` and `history-release/`.
 ## Restore from the source ZIP
 
 ```sh
-sha256sum -c rooted-tree-catalan-closure-v1.6.0.zip.sha256
-unzip rooted-tree-catalan-closure-v1.6.0.zip
-cd rooted-tree-catalan-closure-v1.6.0
-python3 scripts/verify_source_zip.py /path/to/release-files/rooted-tree-catalan-closure-v1.6.0.zip \
-  --checksum /path/to/release-files/rooted-tree-catalan-closure-v1.6.0.zip.sha256
+sha256sum -c rooted-tree-catalan-closure-v1.7.0.SHA256SUMS
+unzip rooted-tree-catalan-closure-v1.7.0.zip
+cd rooted-tree-catalan-closure-v1.7.0
+python3 scripts/verify_source_zip.py /path/to/release-files/rooted-tree-catalan-closure-v1.7.0.zip \
+  --checksum /path/to/release-files/rooted-tree-catalan-closure-v1.7.0.zip.sha256
 python3 scripts/verify_release.py --release-dir /path/to/release-files
 python3 scripts/check_repository.py
 ```
 
 The ZIP includes `SOURCE-MANIFEST.sha256`, the archived Lean build/oracle logs, and all
-tooling needed for a standalone audit. Its external `.zip.sha256`, SPDX SBOM, and
-release metadata must agree with the internal inventory. `scripts/verify_release.py`
+tooling needed for a standalone audit. Its external `.zip.sha256`, SPDX SBOM, release
+metadata, and complete `SHA256SUMS` must agree with the internal inventory.
+`scripts/verify_release.py`
 extracts the archive and runs the repository audit from that clean tree.
 
 ## Restore full Git history
@@ -43,9 +44,9 @@ extracts the archive and runs the repository audit from that clean tree.
 Keep the `.bundle`, `.history.json`, and `.history.SHA256SUMS` files together.
 
 ```sh
-sha256sum -c rooted-tree-catalan-closure-v1.6.0.history.SHA256SUMS
-git bundle verify rooted-tree-catalan-closure-v1.6.0-history.bundle
-git clone rooted-tree-catalan-closure-v1.6.0-history.bundle rooted-tree-catalan-closure
+sha256sum -c rooted-tree-catalan-closure-v1.7.0.history.SHA256SUMS
+git bundle verify rooted-tree-catalan-closure-v1.7.0-history.bundle
+git clone rooted-tree-catalan-closure-v1.7.0-history.bundle rooted-tree-catalan-closure
 cd rooted-tree-catalan-closure
 git checkout <head_commit from the history JSON>
 ```
@@ -63,7 +64,8 @@ git push origin --tags
 Store these outside GitHub:
 
 - deterministic source ZIP;
-- ZIP checksum, external source manifest, SPDX SBOM, release metadata, and SHA256SUMS;
+- ZIP checksum, internal source manifest, SPDX SBOM, release metadata, and complete
+  `SHA256SUMS`;
 - Git history bundle, history inventory, and history SHA256SUMS;
 - compiled manuscript PDF;
 - the tag or commit identifier from which the artifacts were produced.

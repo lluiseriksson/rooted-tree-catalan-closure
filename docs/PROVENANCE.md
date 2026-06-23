@@ -9,8 +9,11 @@ The recovered repository history is append-only:
 - `1f2666a7f34f8fed57295e49d4c236f06a22e7cc` — recovery hardening v1.3.0.
 - `e50d83f5f2ebd2cce8d470f39dbeba5fa20f4ff6` — CI fix that hard-pins `main.tex` in the Makefile.
 - `27c48960e8ae1b1ebfaafee4c210c26a1f2883e4` — released v1.4.1 finite-evidence and replay hardening.
+- `abb07be764efe6d208acafa9bdba443195ad7009` — released v1.5.0 recovery and portable packaging hardening.
+- `c06d8fddafd0a3b513712fcc8b1be144ff62f8f9` — released v1.6.0 standalone ZIP and exact bundle-head verification.
 
-The v1.5.0 release and the subsequent v1.5.1/v1.6.0 improvement layers apply on top of the recovered history without rewriting prior commits. The recovered Lean adapter remains tied to upstream base
+The v1.7.0 clean-source, SPDX, complete-checksum, and platform-parity layer applies on top
+of that append-only history without rewriting prior commits. The recovered Lean adapter remains tied to upstream base
 `1d044a353ac2b69ddca732dd851fb0ab4a94d7af` and mailbox patch commit
 `d668c333db302f9f399374e3c824805a1c4d71da`.
 

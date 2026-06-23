@@ -61,8 +61,8 @@ make verify-release
 
 The source ZIP uses sorted `ZIP_STORED` entries, normalized timestamps, UTF-8 names, and
 normalized permissions. Avoiding Deflate removes zlib-version-dependent output. An
-internal `SOURCE-MANIFEST.sha256`, external checksum, SPDX 2.3 SBOM, theorem-manifest
-digest, finite-evidence digest, and release metadata are cross-checked against the
+internal `SOURCE-MANIFEST.sha256`, external checksum, SPDX 2.3 SBOM, complete release
+`SHA256SUMS`, theorem-manifest digest, finite-evidence digest, and release metadata are cross-checked against the
 working source tree by `scripts/verify_release.py`. The verifier then extracts the ZIP
 and executes `python scripts/check_repository.py` inside the extracted copy. This catches
 omissions that source-parity alone cannot detect, including missing archived Lean
@@ -80,6 +80,12 @@ make package-determinism
 
 This second-generation packaging check prevents a generated manifest or recovery byproduct
 from becoming a duplicate or accidental source entry.
+
+In a Git checkout, publication packaging is tracked-only and requires a clean worktree.
+Tracked symbolic links or other non-regular paths fail closed, and untracked files are never
+included. The independent verifier requires exactly the five declared release outputs as
+regular non-symbolic-link files. The SPDX 2.3 file inventory contains canonical SHA-1 and
+SHA-256 values plus the package verification code; SHA-256 remains the release trust anchor.
 
 ## Full Lean replay
 
@@ -114,7 +120,8 @@ The standard-library tooling is tested on Python 3.11, 3.12, and 3.13. The refer
 Run `scripts/verify_source_zip.py` against the original ZIP and its checksum before
 extraction. The verifier reads normalized modes from ZIP metadata, so Windows permission
 translation cannot create a false failure. Archive file count and expanded size are bounded,
-and project metadata is parsed with duplicate-key and non-finite-number rejection.
+and project metadata is parsed with duplicate-key, non-finite-number, exponent-overflow, and
+exponent-underflow rejection.
 
 History inventories use schema 2 and must equal `git bundle list-heads` exactly. The Git
 bundle remains structurally verified and checksummed but is not claimed byte-reproducible

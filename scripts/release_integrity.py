@@ -32,6 +32,7 @@ MAX_RELATIVE_PATH_UTF8_BYTES = 4096
 MAX_ARCHIVE_FILES = 10_000
 MAX_ARCHIVE_FILE_BYTES = 128 * 1024 * 1024
 MAX_ARCHIVE_TOTAL_BYTES = 512 * 1024 * 1024
+FORBIDDEN_UNICODE_CATEGORIES = {"Cc", "Cf", "Cs", "Zl", "Zp"}
 
 
 class IntegrityError(ValueError):
@@ -57,8 +58,8 @@ def validate_portable_relative_path(path: str) -> str:
         raise IntegrityError("empty source path")
     if path.startswith("/") or "\\" in path:
         raise IntegrityError(f"non-POSIX or absolute source path: {path!r}")
-    if any(ord(char) < 32 or ord(char) == 127 for char in path):
-        raise IntegrityError(f"control character in source path: {path!r}")
+    if any(unicodedata.category(char) in FORBIDDEN_UNICODE_CATEGORIES for char in path):
+        raise IntegrityError(f"control, formatting, or line-separator character in source path: {path!r}")
     if path != unicodedata.normalize("NFC", path):
         raise IntegrityError(f"source path is not Unicode NFC-normalized: {path!r}")
     try:

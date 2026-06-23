@@ -21,9 +21,20 @@ class StrictJSONTests(unittest.TestCase):
             loads('{"outer": {"x": 1, "x": 2}}', source="nested.json")
 
     def test_nonfinite_numbers_are_rejected(self) -> None:
-        for token in ("NaN", "Infinity", "-Infinity"):
+        for token in (
+            "NaN",
+            "Infinity",
+            "-Infinity",
+            "1e999",
+            "-1e999",
+            "1e-999",
+            "-1e-999",
+        ):
             with self.subTest(token=token), self.assertRaises(StrictJSONError):
                 loads(f'{{"value": {token}}}', source="nonfinite.json")
+
+    def test_finite_decimal_numbers_are_preserved(self) -> None:
+        self.assertEqual(loads('{"value": 1.25}'), {"value": 1.25})
 
 
 if __name__ == "__main__":

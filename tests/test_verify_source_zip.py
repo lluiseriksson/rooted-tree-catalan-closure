@@ -26,6 +26,7 @@ class StandaloneSourceZipTests(unittest.TestCase):
         *,
         script_executable: bool = True,
         duplicate_project_key: bool = False,
+        extra_files: dict[str, bytes] | None = None,
     ) -> tuple[Path, Path]:
         if duplicate_project_key:
             project = b'{"name":"rooted-tree-catalan-closure","version":"9.8.7","version":"9.8.7","release_date":"2026-06-23"}\n'
@@ -43,19 +44,21 @@ class StandaloneSourceZipTests(unittest.TestCase):
                 + "\n"
             ).encode()
         script = b"#!/usr/bin/env python3\nprint('ok')\n"
-        records = [("project.json", sha256(project)), ("scripts/tool.py", sha256(script))]
+        files = {"project.json": project, "scripts/tool.py": script}
+        files.update(extra_files or {})
+        records = [(relative, sha256(payload)) for relative, payload in files.items()]
         manifest = format_source_manifest(records)
         archive = directory / f"{self.prefix}.zip"
         with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_STORED) as output:
-            output.writestr(zip_info(f"{self.prefix}/project.json", self.timestamp), project)
-            output.writestr(
-                zip_info(
-                    f"{self.prefix}/scripts/tool.py",
-                    self.timestamp,
-                    executable=script_executable,
-                ),
-                script,
-            )
+            for relative in sorted(files):
+                output.writestr(
+                    zip_info(
+                        f"{self.prefix}/{relative}",
+                        self.timestamp,
+                        executable=relative == "scripts/tool.py" and script_executable,
+                    ),
+                    files[relative],
+                )
             output.writestr(
                 zip_info(f"{self.prefix}/SOURCE-MANIFEST.sha256", self.timestamp),
                 manifest,
@@ -99,6 +102,15 @@ class StandaloneSourceZipTests(unittest.TestCase):
             archive, checksum = self.build_archive(root)
             checksum.write_text(f"{'0' * 64}  wrong.zip\n", encoding="utf-8")
             with self.assertRaises(IntegrityError):
+                verify_source_zip(archive, checksum_path=checksum)
+
+    def test_repository_internal_paths_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            archive, checksum = self.build_archive(
+                Path(temporary),
+                extra_files={".git/config": b"[core]\n"},
+            )
+            with self.assertRaisesRegex(IntegrityError, "excluded path"):
                 verify_source_zip(archive, checksum_path=checksum)
 
 

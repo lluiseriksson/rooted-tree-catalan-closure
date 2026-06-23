@@ -20,7 +20,7 @@ help:
 	  'make paper               - rebuild manuscript into build/ without changing tracked PDF' \
 	  'make paper-refresh       - intentionally replace tracked PDF with rebuilt PDF' \
 	  'make paper-check         - rebuild and inspect the build PDF' \
-	  'make package             - deterministic stored ZIP, checksum, source manifest, and SPDX SBOM' \
+	  'make package             - deterministic ZIP, full SHA256SUMS, SPDX SBOM, and metadata' \
 	  'make package-determinism - build the release twice and compare every output byte' \
 	  'make package-repackaging - reproduce release bytes from its extracted source ZIP' \
 	  'make verify-source-zip   - verify ZIP bytes/modes without trusting extracted permissions' \
@@ -78,7 +78,7 @@ package-repackaging: static test finite-check
 	$(PYTHON) scripts/check_repackaging.py
 
 verify-source-zip: package
-	@version=`$(PYTHON) -c 'import json; print(json.load(open("project.json", encoding="utf-8"))["version"])'`; \
+	@version=`PYTHONPATH=scripts $(PYTHON) -c 'from pathlib import Path; from strict_json import load; print(load(Path("project.json"))["version"])'`; \
 	$(PYTHON) scripts/verify_source_zip.py \
 	  "$(RELEASE_DIR)/rooted-tree-catalan-closure-v$$version.zip" \
 	  --checksum "$(RELEASE_DIR)/rooted-tree-catalan-closure-v$$version.zip.sha256" \
@@ -95,7 +95,7 @@ verify-history: history-bundle
 
 recovery: package-determinism package-repackaging verify-source-zip verify-release verify-history
 
-verify: static test finite-check package-determinism package-repackaging verify-source-zip
+verify: static test finite-check package-determinism package-repackaging verify-source-zip verify-release
 
 release: verify paper-check package verify-release
 

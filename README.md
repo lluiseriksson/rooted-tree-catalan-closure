@@ -24,7 +24,7 @@ Repository recovery and theorem completeness are separate questions:
 | Exact finite tree identity, `0 ≤ n ≤ 8` | Recomputed by three integer-only methods |
 | General Lean proof of `RootedChildFactorialCatalanIdentity n` | **Still open in this artifact** |
 | Static integrity, patch applicability, packaging, and release verification | Automated |
-| Source ZIP self-audit and archived Lean evidence | Verified directly, after extraction, and after second-generation repackaging |
+| Source ZIP self-audit and archived Lean evidence | Built from tracked files in a clean tree; verified directly, after extraction, and after second-generation repackaging |
 | Workflow supply chain | Allowlisted actions pinned to full commit SHAs |
 | Full Git history and refs | Recoverable through a Git bundle checked against its exact head inventory |
 
@@ -108,11 +108,21 @@ make paper-check
 `make paper` writes `build/Rooted_tree_Catalan_closure.pdf`. Replacing the tracked PDF
 requires the explicit `make paper-refresh` target.
 
-Create a deterministic source ZIP, SHA-256 checksum, SPDX 2.3 SBOM, and release metadata:
+On PowerShell, `./build.ps1` follows the same non-destructive policy. Use
+`./build.ps1 -RefreshTrackedPdf` only for an intentional archival replacement.
+
+Create the five canonical release outputs: deterministic source ZIP, ZIP sidecar,
+SPDX 2.3 SBOM, release metadata, and complete release checksums:
 
 ```sh
 make package
 ```
+
+Publication packaging refuses a dirty Git worktree and inventories tracked regular files
+only. Untracked or ignored files are never packaged; tracked symbolic links and missing or
+non-regular paths fail closed. `--allow-dirty` exists only for deliberate development builds.
+The generated `SHA256SUMS` covers the ZIP, sidecar, SBOM, and metadata, while the independent
+verifier requires exactly the five declared regular-file outputs.
 
 The source ZIP uses uncompressed, normalized entries (`ZIP_STORED`) so its bytes do not
 depend on a particular zlib version. It includes the archived Lean build/oracle logs, is
@@ -126,8 +136,8 @@ and canonical archive metadata directly:
 
 ```sh
 python scripts/verify_source_zip.py \
-  release/rooted-tree-catalan-closure-v1.6.0.zip \
-  --checksum release/rooted-tree-catalan-closure-v1.6.0.zip.sha256
+  release/rooted-tree-catalan-closure-v1.7.0.zip \
+  --checksum release/rooted-tree-catalan-closure-v1.7.0.zip.sha256
 ```
 
 This check treats ZIP metadata as authoritative and deliberately does not trust executable
@@ -143,6 +153,10 @@ The same extracted tree can run `make package-determinism`, `make package-repack
 `make verify-release` without re-adding the generated manifest. Cross-surface release and
 theorem metadata can be checked with `python scripts/check_metadata_consistency.py`. See
 [docs/ENGINEERING_HARDENING.md](docs/ENGINEERING_HARDENING.md) for the regression record.
+
+The SPDX 2.3 document records the canonical SHA-1 required for each analyzed file, an
+additional SHA-256, and the package verification code. SHA-256 remains the trust anchor for
+the source archive and every release output; SHA-1 is used only for SPDX interoperability.
 
 Preserve and verify the complete commit graph and refs separately:
 
@@ -208,6 +222,7 @@ The archived evidence records a successful 8,235-job build and exactly
 - `scripts/verify_release.py` — independent release/source parity verification.
 - `scripts/create_history_bundle.py` — complete Git history/ref recovery bundle.
 - `schema/project.schema.json` — machine-readable metadata contract.
+- `build.ps1` — non-destructive PowerShell manuscript build and inspection entrypoint.
 - `docs/` — claims boundary, provenance, recovery, reproducibility, and proof roadmap.
 
 ## Scope

@@ -82,6 +82,8 @@ def check_metadata_consistency(root: Path = ROOT) -> list[str]:
     project = _json_file(root, "project.json", errors)
     if not project:
         return errors
+    _expect(errors, project.get("schema_version") == 5, "project.json schema-version drift")
+    _expect(errors, project.get("recovery_generation") == 8, "project.json recovery-generation drift")
 
     version = project.get("version")
     release_date = project.get("release_date")
@@ -145,20 +147,42 @@ def check_metadata_consistency(root: Path = ROOT) -> list[str]:
 
     release_policy = project.get("release_policy", {})
     for key in (
+        "clean_git_worktree_required",
+        "complete_release_checksums",
+        "non_destructive_powershell_build",
         "portable_archive_paths",
+        "release_output_exact_inventory",
         "source_archive_repackaging",
         "source_manifest_self_check",
+        "spdx_2_3_conformant_checksums",
         "standalone_source_zip_verifier",
         "strict_json_metadata",
+        "tracked_git_files_only",
         "history_bundle_exact_head_inventory",
         "archive_resource_limits",
     ):
         _expect(errors, release_policy.get(key) is True, f"project release policy does not enable {key}")
+    _expect(
+        errors,
+        project.get("release_outputs")
+        == [
+            "rooted-tree-catalan-closure-v{version}.zip",
+            "rooted-tree-catalan-closure-v{version}.zip.sha256",
+            "rooted-tree-catalan-closure-v{version}.spdx.json",
+            "rooted-tree-catalan-closure-v{version}.release.json",
+            "rooted-tree-catalan-closure-v{version}.SHA256SUMS",
+        ],
+        "project release output inventory drift",
+    )
     required_checks = project.get("required_checks", [])
     _expect(errors, any("metadata consistency" in str(item).lower() for item in required_checks), "project required checks omit metadata consistency")
     _expect(errors, any("source manifest" in str(item).lower() for item in required_checks), "project required checks omit extracted source-manifest verification")
     _expect(errors, any("standalone source zip" in str(item).lower() for item in required_checks), "project required checks omit standalone source ZIP verification")
     _expect(errors, any("exact git bundle head" in str(item).lower() for item in required_checks), "project required checks omit exact Git bundle head verification")
+    _expect(errors, any("tracked git files only" in str(item).lower() for item in required_checks), "project required checks omit tracked-only clean-worktree packaging")
+    _expect(errors, any("complete release sha256sums" in str(item).lower() for item in required_checks), "project required checks omit the complete release checksum inventory")
+    _expect(errors, any("spdx 2.3 file sha1" in str(item).lower() for item in required_checks), "project required checks omit SPDX 2.3 verification data")
+    _expect(errors, any("non-destructive powershell" in str(item).lower() for item in required_checks), "project required checks omit the non-destructive PowerShell build")
     _expect(errors, project.get("history_inventory_schema") == 2, "project history inventory schema drift")
     return errors
 

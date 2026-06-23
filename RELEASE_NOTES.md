@@ -1,37 +1,41 @@
 # Release notes
 
-## v1.6.0 standalone ZIP verification and exact history inventory
+## v1.7.0 clean-source publication and SPDX/output integrity
 
-This release extends the v1.5.1 repackaging work with an archive-first recovery path. The
-original ZIP can now be verified without extracting it and without assuming that Windows
-preserves Unix executable bits. It also closes two silent-normalization gaps: duplicate JSON
-keys and history inventories that were checksummed but not compared with the refs actually
-advertised by the Git bundle.
+This release tightens the boundary between a development checkout and a publication
+artifact. A source release is now built only from tracked regular files in a clean Git
+worktree, and every emitted artifact is covered by an independently verified release
+inventory. The SPDX document now carries the checksum profile required for an analyzed
+SPDX 2.3 package while retaining SHA-256 as the release trust anchor.
 
 ### Added
 
-- `scripts/verify_source_zip.py`, a standalone verifier for source ZIP bytes, external
-  checksums, canonical entry order, timestamps, portable modes, paths, CRCs, manifest hashes,
-  release identity, and bounded archive resources.
-- `scripts/strict_json.py`, which rejects duplicate object keys and `NaN`/infinite values in
-  integrity-critical metadata.
-- History inventory schema 2 with the exact output of `git bundle list-heads`, including
-  `HEAD`, annotated-tag object IDs, and `refs/rtc-recovery/HEAD`.
-- `make verify-source-zip` and CI coverage on the reference packaging job.
-- Regression tests for Windows-style permission loss, mode drift, duplicate JSON keys,
-  checksum-name substitution, and history-head inventory tampering.
+- Tracked-only Git source discovery. Untracked, ignored, repository-internal, generated,
+  symbolic-link, missing, and non-regular tracked paths cannot silently enter or disappear
+  from a publication package.
+- A clean-worktree publication gate in `scripts/package_release.py`. The explicit
+  `--allow-dirty` option is limited to development builds and never includes untracked files.
+- `rooted-tree-catalan-closure-v<version>.SHA256SUMS`, covering the ZIP, ZIP sidecar,
+  SPDX document, and release metadata. Verification also requires the release directory to
+  contain exactly the five declared regular-file outputs and no symbolic links.
+- SPDX 2.3 file records with one canonical SHA-1 checksum plus SHA-256, together with the
+  package verification code computed independently by the producer and verifier.
+- Regression coverage for JSON exponent overflow and underflow, tracked symbolic links,
+  redirected output paths, Unicode formatting characters in archive names, excluded paths,
+  and checksum/SBOM tampering.
 
-### Hardened
+### Corrected
 
-- Safe extraction restores Unix modes only on POSIX; Windows host modes are explicitly
-  non-authoritative because archive metadata was already checked.
-- Source ZIPs have file-count, per-file-size, and total-expanded-size ceilings.
-- Portable filename validation includes UTF-8 length limits and additional Windows device
-  names.
-- Release metadata schema 4 records the standalone command, permission model, resource
-  limits, history inventory schema, and exact-head verification requirement.
-- `verify_release.py` runs the standalone verifier before extraction and independently
-  cross-checks its report against the manifest, SBOM, release metadata, and source tree.
+- Strict JSON parsing now rejects finite-looking exponent literals that Python would silently
+  normalize to infinity or zero.
+- The standalone ZIP verifier rejects repository-internal and generated source paths even
+  when a forged internal manifest lists them.
+- `build.ps1` writes and inspects the PDF under `build/` by default; replacing the tracked PDF
+  requires the explicit `-RefreshTrackedPdf` switch.
+- `make verify` now includes independent release verification, matching the documented local
+  acceptance gate.
+- The PowerShell build and release-output policy are now machine-audited and recorded in
+  `project.json` schema 5 and release metadata schema 5.
 
 ### Formal boundary
 

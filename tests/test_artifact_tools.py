@@ -15,7 +15,10 @@ from package_release import (
     ARCHIVED_EVIDENCE_LOGS,
     file_license,
     portable_executable_mode,
+    reject_symlink_outputs,
+    release_checksum_payload,
     repository_files,
+    spdx_package_verification_code,
     zip_info,
 )
 
@@ -58,12 +61,53 @@ class ArtifactToolTests(unittest.TestCase):
         self.assertFalse(portable_executable_mode("README.md"))
         self.assertFalse(portable_executable_mode(".github/workflows/artifact-ci.yml"))
 
+    def test_spdx_package_verification_code_uses_sorted_sha1_values(self) -> None:
+        values = [hashlib.sha1(b"b").hexdigest(), hashlib.sha1(b"a").hexdigest()]
+        expected = hashlib.sha1("".join(sorted(values)).encode("ascii")).hexdigest()
+        self.assertEqual(spdx_package_verification_code(values), expected)
+
+    def test_complete_release_checksum_payload_is_canonical(self) -> None:
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            left = root / "b.json"
+            right = root / "a.zip"
+            left.write_bytes(b"b")
+            right.write_bytes(b"a")
+            payload = release_checksum_payload([left, right]).decode("utf-8")
+            self.assertEqual(payload.splitlines()[0].split("  ", 1)[1], "a.zip")
+            self.assertEqual(payload.splitlines()[1].split("  ", 1)[1], "b.json")
+
+    def test_release_outputs_must_not_be_symbolic_links(self) -> None:
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / "target"
+            target.write_bytes(b"target")
+            link = root / "artifact.zip"
+            try:
+                link.symlink_to(target)
+            except OSError as exc:
+                self.skipTest(f"symbolic links unavailable: {exc}")
+            with self.assertRaisesRegex(Exception, "symbolic-link release output"):
+                reject_symlink_outputs([link])
+
     def test_makefile_pins_manuscript_source(self) -> None:
         makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
         self.assertIn("TEX := main.tex\n", makefile)
         self.assertIn("TRACKED_PDF := Rooted_tree_Catalan_closure.pdf\n", makefile)
         self.assertNotIn("TEX ?=", makefile)
 
+
+    def test_powershell_paper_build_is_non_destructive_by_default(self) -> None:
+        script = (ROOT / "build.ps1").read_text(encoding="utf-8")
+        self.assertIn("[switch]$RefreshTrackedPdf", script)
+        self.assertIn("if ($RefreshTrackedPdf)", script)
+        self.assertIn("$builtPdf", script)
+        self.assertIn("scripts/check_pdf.py", script)
+        self.assertIn("without modifying the tracked artifact", script)
 
     def test_source_package_keeps_archived_lean_logs(self) -> None:
         selected = {path.relative_to(ROOT).as_posix() for path in repository_files(ROOT / "release")}

@@ -25,6 +25,7 @@ REQUIRED_FILES = (
     "main.tex",
     "Rooted_tree_Catalan_closure.pdf",
     "Makefile",
+    "build.ps1",
     "project.json",
     "LEAN_PATCH_MANIFEST.md",
     "CHANGELOG.md",
@@ -118,6 +119,7 @@ REQUIRED_CRITICAL_TOOLING = {
     "scripts/release_integrity.py",
     "scripts/source_inventory.py",
     "scripts/verify_release.py",
+    "build.ps1",
 }
 BINARY_SUFFIXES = {".pdf", ".png", ".jpg", ".jpeg", ".gif", ".zip"}
 
@@ -316,7 +318,7 @@ def main() -> int:
         audit.note("extracted source manifest verified against the complete distributable tree")
 
     project = strict_json_loads(read_text("project.json"), source="project.json")
-    audit.require(project.get("schema_version") == 4, "unsupported project.json schema")
+    audit.require(project.get("schema_version") == 5, "unsupported project.json schema")
     audit.require(project.get("name") == "rooted-tree-catalan-closure", "wrong project name")
     audit.require(project.get("default_branch") == "master", "default branch record is not master")
     audit.require(
@@ -326,8 +328,16 @@ def main() -> int:
     audit.require(bool(re.fullmatch(r"\d+\.\d+\.\d+", project.get("version", ""))), "bad version")
     schema = strict_json_loads(read_text("schema/project.schema.json"), source="schema/project.schema.json")
     audit.require(schema.get("$schema") == "https://json-schema.org/draft/2020-12/schema", "project schema draft drift")
+    audit.require(
+        schema.get("properties", {}).get("schema_version", {}).get("const") == 5,
+        "project schema version contract drift",
+    )
     audit.require("history_backup_outputs" in schema.get("required", []), "project schema omits history outputs")
     audit.require("actions_policy" in schema.get("required", []), "project schema omits actions policy")
+    audit.require(
+        schema.get("properties", {}).get("release_outputs", {}).get("minItems") == 5,
+        "project schema does not require all five release outputs",
+    )
     audit.require(
         project.get("tooling_python_versions") == ["3.11", "3.12", "3.13"],
         "tooling Python matrix drift",
@@ -346,7 +356,17 @@ def main() -> int:
         REQUIRED_CRITICAL_TOOLING <= set(project.get("critical_git_blobs", {})),
         "critical tooling inventory omits release-integrity or metadata validators",
     )
-    audit.require(len(project.get("release_outputs", [])) >= 4, "release output inventory is incomplete")
+    audit.require(
+        project.get("release_outputs")
+        == [
+            "rooted-tree-catalan-closure-v{version}.zip",
+            "rooted-tree-catalan-closure-v{version}.zip.sha256",
+            "rooted-tree-catalan-closure-v{version}.spdx.json",
+            "rooted-tree-catalan-closure-v{version}.release.json",
+            "rooted-tree-catalan-closure-v{version}.SHA256SUMS",
+        ],
+        "release output inventory is incomplete or noncanonical",
+    )
     audit.require(len(project.get("history_backup_outputs", [])) == 3, "history output inventory is incomplete")
     recovery_policy = project.get("recovery_policy", {})
     audit.require(recovery_policy.get("off_site_storage_recommended") is True, "off-site recovery policy drift")
@@ -360,8 +380,30 @@ def main() -> int:
         "strict_json_metadata",
         "history_bundle_exact_head_inventory",
         "archive_resource_limits",
+        "complete_release_checksums",
+        "tracked_git_files_only",
+        "clean_git_worktree_required",
+        "release_output_exact_inventory",
+        "spdx_2_3_conformant_checksums",
+        "non_destructive_powershell_build",
     ):
         audit.require(release_policy.get(key) is True, f"release policy does not enable {key}")
+    schema_release_policy = schema.get("properties", {}).get("release_policy", {})
+    schema_policy_properties = schema_release_policy.get("properties", {})
+    schema_policy_required = set(schema_release_policy.get("required", []))
+    for key in (
+        "clean_git_worktree_required",
+        "complete_release_checksums",
+        "non_destructive_powershell_build",
+        "release_output_exact_inventory",
+        "spdx_2_3_conformant_checksums",
+        "tracked_git_files_only",
+    ):
+        audit.require(
+            schema_policy_properties.get(key, {}).get("const") is True
+            and key in schema_policy_required,
+            f"project schema does not require release policy {key}",
+        )
     audit.require(project.get("history_inventory_schema") == 2, "history inventory schema drift")
     actions_policy_rel = project.get("actions_policy")
     audit.require(actions_policy_rel == "archive/github-actions-policy.json", "actions-policy path drift")
@@ -569,26 +611,75 @@ def main() -> int:
         "recovery:",
     ):
         audit.require(target in makefile, f"Makefile lacks target {target}")
+    verify_target = re.search(r"(?m)^verify:\s*(.*)$", makefile)
+    audit.require(
+        verify_target is not None and "verify-release" in verify_target.group(1).split(),
+        "make verify does not include independent release verification",
+    )
+    audit.require("json.load" not in makefile, "Makefile bypasses strict JSON parsing")
+
+    powershell_build = read_text("build.ps1")
+    audit.require(
+        "[switch]$RefreshTrackedPdf" in powershell_build
+        and "if ($RefreshTrackedPdf)" in powershell_build
+        and "scripts/check_pdf.py" in powershell_build
+        and "without modifying the tracked artifact" in powershell_build,
+        "PowerShell paper build may overwrite the tracked PDF by default or skip inspection",
+    )
+
     package_source = read_text("scripts/package_release.py")
     audit.require("ZIP_STORED" in package_source, "release ZIP is not cross-runtime stored")
     audit.require("ARCHIVED_EVIDENCE_LOGS" in package_source, "source package does not preserve archived Lean evidence logs")
+    audit.require(
+        "packageVerificationCode" in package_source
+        and '"algorithm": "SHA1"' in package_source
+        and "release_checksum_payload" in package_source
+        and "reject_symlink_outputs" in package_source,
+        "release packager lacks SPDX 2.3 file hashes, package verification code, or full checksums",
+    )
+    audit.require(
+        "require_clean_git_source" in package_source and "--allow-dirty" in package_source,
+        "release packager does not reject dirty Git publication inputs",
+    )
     inventory_source = read_text("scripts/source_inventory.py")
     audit.require(
         '"SOURCE-MANIFEST.sha256"' in inventory_source,
         "source inventory does not exclude its generated manifest during repackaging",
+    )
+    audit.require(
+        '"--cached"' in inventory_source
+        and '"-co"' not in inventory_source
+        and "git_worktree_status" in inventory_source,
+        "Git source inventory is not tracked-only or lacks a clean-worktree gate",
     )
     integrity_source = read_text("scripts/release_integrity.py")
     audit.require(
         "validate_portable_relative_path" in integrity_source and "safe_extract_members" in integrity_source,
         "release verifier lacks portable-path or safe-extraction hardening",
     )
+    strict_source = read_text("scripts/strict_json.py")
+    audit.require(
+        "parse_float=finite_float" in strict_source
+        and "math.isfinite" in strict_source
+        and "exact.is_zero" in strict_source,
+        "strict JSON parser does not reject exponent overflow or underflow",
+    )
     verifier_source = read_text("scripts/verify_release.py")
     audit.require("run_extracted_self_audit" in verifier_source, "release verifier does not audit the extracted source archive")
+    audit.require(
+        "verify_release_checksum_inventory" in verifier_source
+        and "packageVerificationCode" in verifier_source
+        and "SHA1" in verifier_source
+        and "validate_release_output_directory" in verifier_source
+        and "non-regular output entries" in verifier_source,
+        "release verifier omits complete output checksums or SPDX 2.3 verification",
+    )
     standalone_source = read_text("scripts/verify_source_zip.py")
     audit.require(
         "host permission" in standalone_source.lower()
-        and "validate_archive_resource_limits" in standalone_source,
-        "standalone source-ZIP verifier lacks permission-independent or resource-limit checks",
+        and "validate_archive_resource_limits" in standalone_source
+        and "source_exclusion_reason" in standalone_source,
+        "standalone source-ZIP verifier lacks permission-independent, resource, or exclusion checks",
     )
     history_verifier_source = read_text("scripts/verify_history_bundle.py")
     audit.require(
@@ -642,6 +733,10 @@ def main() -> int:
     audit.require("tags: [\"v*\"]" in release and "gh release create" in release, "tagged release workflow is incomplete")
     audit.require("actions/attest-build-provenance@" in release, "tagged release lacks provenance attestations")
     audit.require("history-release/*" in release, "tagged release omits full-history recovery artifacts")
+    audit.require(
+        "from strict_json import load" in release and "json.load" not in release,
+        "tag/version release guard bypasses strict JSON parsing",
+    )
     dependabot = read_text(".github/dependabot.yml")
     audit.require("groups:" in dependabot and "github-actions:" in dependabot, "Dependabot action updates are not grouped")
     audit.require("open-pull-requests-limit: 1" in dependabot, "Dependabot may open parallel action-update PRs")

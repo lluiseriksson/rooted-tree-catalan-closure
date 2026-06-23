@@ -101,7 +101,7 @@
       "items": {
         "type": "string"
       },
-      "minItems": 4,
+      "minItems": 5,
       "type": "array",
       "uniqueItems": true
     },
@@ -111,6 +111,12 @@
           "const": "ZIP_STORED"
         },
         "archive_resource_limits": {
+          "const": true
+        },
+        "clean_git_worktree_required": {
+          "const": true
+        },
+        "complete_release_checksums": {
           "const": true
         },
         "cross_runtime_byte_determinism": {
@@ -125,7 +131,13 @@
         "host_extracted_modes_authoritative": {
           "const": false
         },
+        "non_destructive_powershell_build": {
+          "const": true
+        },
         "portable_archive_paths": {
+          "const": true
+        },
+        "release_output_exact_inventory": {
           "const": true
         },
         "source_archive_repackaging": {
@@ -137,27 +149,39 @@
         "source_manifest_self_check": {
           "const": true
         },
+        "spdx_2_3_conformant_checksums": {
+          "const": true
+        },
         "standalone_source_zip_verifier": {
           "const": true
         },
         "strict_json_metadata": {
+          "const": true
+        },
+        "tracked_git_files_only": {
           "const": true
         }
       },
       "required": [
         "archive_method",
         "archive_resource_limits",
+        "clean_git_worktree_required",
+        "complete_release_checksums",
         "cross_runtime_byte_determinism",
         "github_provenance_attestations",
         "history_bundle_exact_head_inventory",
         "host_extracted_modes_authoritative",
+        "non_destructive_powershell_build",
         "normalized_timestamp",
         "portable_archive_paths",
+        "release_output_exact_inventory",
         "source_archive_repackaging",
         "source_archive_self_audit",
         "source_manifest_self_check",
+        "spdx_2_3_conformant_checksums",
         "standalone_source_zip_verifier",
-        "strict_json_metadata"
+        "strict_json_metadata",
+        "tracked_git_files_only"
       ],
       "type": "object"
     },
@@ -166,7 +190,7 @@
       "type": "string"
     },
     "schema_version": {
-      "const": 4
+      "const": 5
     },
     "status": {
       "const": "recovered_conditional_publication_artifact"

@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.7.0 - 2026-06-23
+
+- Restricted publication packages to tracked regular files from a clean Git worktree;
+  untracked files are excluded and tracked symbolic links or missing/non-regular paths fail
+  closed.
+- Added a canonical complete-release `SHA256SUMS` file and exact regular-file output
+  inventory, including symbolic-link rejection for release destinations and verification.
+- Made the SPDX 2.3 SBOM conformant for analyzed files with canonical SHA-1 plus SHA-256
+  checksums and the independently verified package verification code.
+- Extended strict JSON parsing to reject exponent overflow and underflow, and extended
+  portable-path checks to reject Unicode control, formatting, surrogate, and line-separator
+  characters.
+- Made the PowerShell paper build non-destructive by default and added an explicit tracked-PDF
+  refresh switch plus PDF inspection.
+- Made `make verify` include independent release verification and expanded metadata, schema,
+  audit, documentation, and regression coverage for all new publication invariants.
+
 ## 1.6.0 - 2026-06-23
 
 - Added a standalone source-ZIP verifier that validates archive bytes, canonical modes,

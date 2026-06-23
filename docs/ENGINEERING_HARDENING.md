@@ -1,4 +1,4 @@
-# Engineering hardening in v1.5.1 and v1.6.0
+# Engineering hardening in v1.5.1 through v1.7.0
 
 ## Problem found
 
@@ -90,3 +90,40 @@ verification only ran `git bundle verify`. Version 1.6.0 records the actual outp
 verification time after canonical parsing. This covers `HEAD`, branch and tag object IDs, and
 the temporary detached-head recovery ref. Recomputing the JSON checksum is no longer enough
 to hide an omitted advertised ref.
+
+## v1.7.0: publication input and output closure
+
+Version 1.7.0 closes the remaining gap between “files visible in a checkout” and “files
+authorized for publication.” In a Git checkout, `scripts/source_inventory.py` now asks Git
+for tracked files only. The packager additionally requires an empty porcelain status before
+a publication build. Untracked credentials or scratch data cannot enter the ZIP, while a
+tracked symbolic link, submodule-like non-regular entry, or missing file causes a hard error
+instead of a silent omission. The `--allow-dirty` escape hatch is explicitly development-only
+and still never packages untracked files.
+
+The output side is closed as well. A canonical `SHA256SUMS` file authenticates the source ZIP,
+its one-record sidecar, the SPDX document, and release metadata. Independent verification
+requires exactly those four files plus `SHA256SUMS` in the release directory, all as regular
+non-symbolic-link files. This prevents stale, redirected, or undeclared artifacts from being
+mistaken for one release set.
+
+## v1.7.0: SPDX 2.3 and strict-number completion
+
+Every analyzed SPDX file now carries exactly one canonical SHA-1 checksum plus an additional
+SHA-256. The package contains the verification code computed from the sorted file SHA-1
+values, while the ZIP and complete output inventory continue to use SHA-256 as their trust
+anchor. Producer and verifier implement the calculation independently and compare it with
+the source manifest and archive bytes.
+
+Strict JSON decoding now rejects not only `NaN`, infinities, duplicate keys, and exponent
+overflow, but also nonzero exponent values that Python would underflow silently to zero.
+Portable path validation also rejects Unicode control, formatting, surrogate, and line-
+separator categories so invisible directionality or record-breaking characters cannot enter
+manifests or ZIP member names.
+
+## v1.7.0: non-destructive platform parity
+
+The PowerShell manuscript entrypoint now mirrors the Makefile contract: it writes and checks
+the rebuilt PDF under `build/` and leaves the tracked recovered PDF untouched unless
+`-RefreshTrackedPdf` is supplied. `make verify` also includes the independent release verifier,
+so the concise documented gate and the expanded command sequence are equivalent.

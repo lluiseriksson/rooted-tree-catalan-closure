@@ -22,6 +22,7 @@ from release_integrity import (
     validate_archive_resource_limits,
     validate_zip_info,
 )
+from source_inventory import source_exclusion_reason
 from strict_json import StrictJSONError, loads as strict_json_loads
 
 PREFIX_RE = re.compile(r"^rooted-tree-catalan-closure-v(\d+\.\d+\.\d+)$")
@@ -117,6 +118,14 @@ def verify_source_zip(
 
             members = archive_members(infos, prefix)
             manifest_relative = "SOURCE-MANIFEST.sha256"
+            for relative in members:
+                if relative == manifest_relative:
+                    continue
+                exclusion = source_exclusion_reason(relative)
+                if exclusion is not None:
+                    raise IntegrityError(
+                        f"source ZIP contains an excluded path {relative!r}: {exclusion}"
+                    )
             if manifest_relative not in members:
                 raise IntegrityError("ZIP lacks SOURCE-MANIFEST.sha256")
             if "project.json" not in members:

@@ -12,8 +12,9 @@ formal theorem boundary remains conditional and is documented separately.
    recovered adapter files.
 4. Manually dispatched complete Lean replay with pin checks and a machine-readable report.
 5. Three exact finite computations of the Catalan tree identity through documented orders.
-6. Cross-runtime deterministic stored ZIP with source manifest, external SHA-256, SPDX
-   2.3 SBOM, file-level license records, and release metadata.
+6. Cross-runtime deterministic stored ZIP from tracked regular files in a clean worktree,
+   with source manifest, external SHA-256, SPDX 2.3 SHA-1/SHA-256 file inventory and package
+   verification code, release metadata, and complete release `SHA256SUMS`.
 7. Standalone archive-first verification, independent release/source parity, extracted
    source-tree self-audit, and byte-for-byte packaging replay.
 8. Tag-driven release workflow with GitHub provenance attestations and publication checklist.
@@ -21,6 +22,8 @@ formal theorem boundary remains conditional and is documented separately.
    `git bundle verify`, and `git bundle list-heads` parity.
 10. Full-SHA GitHub Action pins governed by an allowlisted major-version policy rather
     than brittle whole-workflow blob locks.
+11. Exact five-file release-output inventory, symbolic-link rejection, strict exponent
+    overflow/underflow handling, and a non-destructive PowerShell paper build.
 
 ## Acceptance gate
 
