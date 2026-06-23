@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "name": "rooted-tree-catalan-closure",
+  "title": "Rooted-tree summation and Catalan closure",
+  "version": "1.2.0",
+  "release_date": "2026-06-23",
+  "repository": "https://github.com/lluiseriksson/rooted-tree-catalan-closure",
+  "default_branch": "master",
+  "status": "recovered_conditional_publication_artifact",
+  "recovery_baseline_commit": "a060fc6d92d862a23e3cf65fc8789eb54c26d7df",
+  "upstream": {
+    "repository": "https://github.com/lluiseriksson/THE-ERIKSSON-PROGRAMME",
+    "base_commit": "1d044a353ac2b69ddca732dd851fb0ab4a94d7af",
+    "checked_patch_commit": "d668c333db302f9f399374e3c824805a1c4d71da",
+    "lean_toolchain": "leanprover/lean4:v4.29.0-rc6",
+    "mathlib_commit": "07642720480157414db592fa85b626dafb71355b"
+  },
+  "verified_declarations": [
+    "YangMills.KP.rootedChildCount_factorialTreeSum_normalized_le_catalan_of_identity",
+    "YangMills.RG.catalanClosure_fixedPoint",
+    "YangMills.RG.appendixFHoleHsharpWeightedTreeMarkedRootSum_le_catalan_of_expWeight"
+  ],
+  "unresolved_obligation": "YangMills.KP.RootedChildFactorialCatalanIdentity n for every n",
+  "required_checks": [
+    "make audit",
+    "make package",
+    "make paper"
+  ],
+  "artifact_boundary": "The repository contains a paper and a checked conditional Lean adapter. It does not contain a closed proof of the exact Catalan identity."
+}

@@ -1,4 +1,5 @@
 build/
+release/
 *.aux
 *.fdb_latexmk
 *.fls
@@ -7,3 +8,6 @@ build/
 *.toc
 *.synctex.gz
 main.pdf
+.DS_Store
+__pycache__/
+.pytest_cache/

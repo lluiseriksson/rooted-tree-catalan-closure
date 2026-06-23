@@ -1,8 +1,9 @@
 # Lean 4 patch manifest
 
-This manifest is a specification for the narrow Catalan patch.  It is not a build log
-and does not assert that the proposed modules have already been archived as a verified
-Lean commit.
+This manifest is a specification and recovery record for the narrow Catalan patch.  It
+is not a claim that the remaining exact Catalan bijection has been fully proved.  The
+checked part of the artifact is the downstream adapter that takes the Catalan identity
+as an explicit hypothesis.
 
 ## Base snapshot
 
@@ -11,27 +12,37 @@ Lean commit.
 - Lean: `leanprover/lean4:v4.29.0-rc6`
 - mathlib: `07642720480157414db592fa85b626dafb71355b`
 
-## Proposed modules
+## Proposed/adapter modules
 
 1. `YangMills/KP/RootedCatalan.lean`
 2. `YangMills/RG/AppendixFHsharpCatalanClosure.lean`
 3. `YangMills/RG/AppendixFHsharpCatalanSource.lean`
 
-## Headline declarations
+The corresponding repository-local copies are stored under `lean-patch/`, together
+with `lean-patch/catalan-conditional-adapter.patch`.
 
-- `rootedChildCount_factorialTreeSum_normalized_eq_catalan`
-- `appendixFHoleHsharpWeightedTreeMarkedRootSum_le_catalan`
-- `appendixFHoleHsharpWeightedTreeTerm_le_catalan`
-- `catalanClosure_eq_tsum`
-- `catalanClosure_fixedPoint`
-- `catalanClosure_le_geometricClosure`
-- `appendixFHoleHsharp_norm_le_catalanClosure`
-- `rootedAppendixFHsharpProfile_of_catalanClosure`
-- `singleScaleUVDecay_of_catalanProfile`
+## Verified declarations recorded by the recovery bundle
 
-## Required checks for the archived patch
+- `YangMills.KP.rootedChildCount_factorialTreeSum_normalized_le_catalan_of_identity`
+- `YangMills.RG.catalanClosure_fixedPoint`
+- `YangMills.RG.appendixFHoleHsharpWeightedTreeMarkedRootSum_le_catalan_of_expWeight`
+
+`lean-patch/verification/oracle_check_catalan.log` records only
+`[propext, Classical.choice, Quot.sound]` for those declarations.
+
+## Explicit remaining obligation
+
+```lean
+YangMills.KP.RootedChildFactorialCatalanIdentity n
+```
+
+must still be proved for every `n` before the artifact can be described as a closed
+formal proof of the exact rooted child-factorial Catalan identity.
+
+## Required checks for a closed archival patch
 
 ```sh
+lake exe cache get
 lake env lean YangMills/KP/RootedCatalan.lean
 lake env lean YangMills/RG/AppendixFHsharpCatalanClosure.lean
 lake env lean YangMills/RG/AppendixFHsharpCatalanSource.lean
@@ -40,6 +51,5 @@ lake env lean oracle_check.lean
 python scripts/check_consistency.py
 ```
 
-Every headline declaration should report only
-`[propext, Classical.choice, Quot.sound]`, with no `sorryAx` and no project-specific
-axioms.
+Every closed theorem should report only `[propext, Classical.choice, Quot.sound]`,
+with no `sorryAx` and no project-specific axioms.

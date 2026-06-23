@@ -23,6 +23,8 @@ This branch adds a checked, conditional Catalan adapter:
 
 ## Not certified here
 
+This is not a closed formal proof.
+
 The general bijection proving
 
 ```lean
@@ -30,9 +32,9 @@ YangMills.KP.RootedChildFactorialCatalanIdentity n
 ```
 
 for every `n` is not yet proved.  In particular, this branch is not a closed
-formal proof of the exact rooted child-factorial Catalan identity.  It is a
-verified downstream adapter plus a precise formal statement of the remaining
-combinatorial obligation.
+formal proof of the exact rooted child-factorial Catalan identity: it is not a
+closed formal proof of the general Catalan identity.  It is a verified downstream
+adapter plus a precise formal statement of the remaining combinatorial obligation.
 
 ## Commands run
 

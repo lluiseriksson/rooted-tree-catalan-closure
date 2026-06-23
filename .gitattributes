@@ -1,2 +1,7 @@
 * text=auto eol=lf
 *.pdf binary
+*.png binary
+*.zip binary
+/release export-ignore
+/build export-ignore
+/.git export-ignore
