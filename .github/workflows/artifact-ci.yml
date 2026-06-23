@@ -39,7 +39,7 @@ jobs:
         run: make package-determinism
       - name: Build and independently verify release outputs
         run: make verify-release
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: rooted-tree-catalan-closure-release
           path: |
@@ -130,7 +130,7 @@ jobs:
         run: make paper-check
       - name: Confirm tracked recovered PDF remains unchanged
         run: git diff --exit-code -- Rooted_tree_Catalan_closure.pdf
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: rebuilt-manuscript
           path: build/Rooted_tree_Catalan_closure.pdf

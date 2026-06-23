@@ -75,7 +75,7 @@ jobs:
             --upstream-sha "$UPSTREAM_SHA" \
             --lean-toolchain "$LEAN_TOOLCHAIN" \
             --mathlib-sha "$MATHLIB_SHA"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: full-lean-replay-evidence
           path: |

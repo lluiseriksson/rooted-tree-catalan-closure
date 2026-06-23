@@ -31,7 +31,7 @@ jobs:
         run: python scripts/create_history_bundle.py --output-dir history-release
       - name: Verify history bundle
         run: python scripts/verify_history_bundle.py --release-dir history-release
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: rooted-tree-catalan-closure-history
           path: history-release/*
