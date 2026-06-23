@@ -1,5 +1,5 @@
-TEX ?= main.tex
-PDF ?= Rooted_tree_Catalan_closure.pdf
+TEX := main.tex
+PDF := Rooted_tree_Catalan_closure.pdf
 PYTHON ?= python3
 RELEASE_DIR ?= release
 LATEX_FLAGS ?= -interaction=nonstopmode -halt-on-error -file-line-error
