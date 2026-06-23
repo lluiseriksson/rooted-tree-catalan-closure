@@ -37,6 +37,10 @@ jobs:
         run: make ci
       - name: Prove package determinism
         run: make package-determinism
+      - name: Prove extracted-source repackaging
+        run: make package-repackaging
+      - name: Verify source ZIP without host permission assumptions
+        run: make verify-source-zip
       - name: Build and independently verify release outputs
         run: make verify-release
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

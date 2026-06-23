@@ -6,13 +6,14 @@ The project now supports two complementary recovery artifacts:
 2. a Git bundle, which restores commit history and refs.
 
 The source ZIP is byte-reproducible for a fixed source tree. A Git bundle is verified by
-checksum and `git bundle verify`, but is not claimed to be byte-identical across Git
+checksum, `git bundle verify`, and exact `git bundle list-heads` parity, but is not claimed to be byte-identical across Git
 versions.
 
 ## Create recovery artifacts
 
 ```sh
 make package-determinism
+make verify-source-zip
 make verify-release
 make history-bundle
 make verify-history
@@ -23,9 +24,11 @@ Generated files are placed in `release/` and `history-release/`.
 ## Restore from the source ZIP
 
 ```sh
-sha256sum -c rooted-tree-catalan-closure-v1.5.0.zip.sha256
-unzip rooted-tree-catalan-closure-v1.5.0.zip
-cd rooted-tree-catalan-closure-v1.5.0
+sha256sum -c rooted-tree-catalan-closure-v1.6.0.zip.sha256
+unzip rooted-tree-catalan-closure-v1.6.0.zip
+cd rooted-tree-catalan-closure-v1.6.0
+python3 scripts/verify_source_zip.py /path/to/release-files/rooted-tree-catalan-closure-v1.6.0.zip \
+  --checksum /path/to/release-files/rooted-tree-catalan-closure-v1.6.0.zip.sha256
 python3 scripts/verify_release.py --release-dir /path/to/release-files
 python3 scripts/check_repository.py
 ```
@@ -40,9 +43,9 @@ extracts the archive and runs the repository audit from that clean tree.
 Keep the `.bundle`, `.history.json`, and `.history.SHA256SUMS` files together.
 
 ```sh
-sha256sum -c rooted-tree-catalan-closure-v1.5.0.history.SHA256SUMS
-git bundle verify rooted-tree-catalan-closure-v1.5.0-history.bundle
-git clone rooted-tree-catalan-closure-v1.5.0-history.bundle rooted-tree-catalan-closure
+sha256sum -c rooted-tree-catalan-closure-v1.6.0.history.SHA256SUMS
+git bundle verify rooted-tree-catalan-closure-v1.6.0-history.bundle
+git clone rooted-tree-catalan-closure-v1.6.0-history.bundle rooted-tree-catalan-closure
 cd rooted-tree-catalan-closure
 git checkout <head_commit from the history JSON>
 ```

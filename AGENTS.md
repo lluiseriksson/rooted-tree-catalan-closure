@@ -10,7 +10,7 @@
    and oracle evidence synchronized with any Lean-facing change.
 6. Do not overwrite the tracked recovered PDF during ordinary builds. Use `make paper` or
    `make paper-check`; use `make paper-refresh` only for an intentional archival update.
-7. Run `make verify` and `make verify-release` before proposing a release. Run the full
+7. Run `make verify`, `make verify-source-zip`, and `make verify-release` before proposing a release. Run the full
    pinned Lean replay whenever patch files, Lean sources, pins, or recorded Lean evidence
    change.
 8. Preserve both recovery layers: the deterministic source ZIP and the independently
@@ -18,6 +18,10 @@
    Git implementations.
 9. Do not claim a model-specific Yang–Mills activity estimate, continuum construction,
    Osterwalder–Schrader reconstruction, or mass gap from this finite artifact.
+10. Treat ZIP metadata, not extracted Windows permission bits, as the executable-mode source
+    of truth; use the standalone source-ZIP verifier.
+11. Parse integrity-critical JSON strictly and preserve exact `git bundle list-heads` parity
+    in history inventories.
 
 ## Immutable pins
 

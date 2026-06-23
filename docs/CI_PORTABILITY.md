@@ -18,4 +18,11 @@ these two publication-critical paths.
 
 The matrix job performs the standard-library unit tests and a reduced finite Catalan
 smoke check. The reference job additionally runs the complete finite evidence, source
-package determinism, and independent release verification.
+package determinism, standalone permission-independent ZIP verification, and independent
+release verification.
+
+
+On Windows, extracted filesystem modes are not used as proof of the executable policy. The
+source ZIP verifier checks the normalized 0644/0755 attributes in the archive itself; safe
+extraction only reapplies those modes on POSIX. This keeps validation consistent across
+Python 3.11–3.13 and across host permission models.

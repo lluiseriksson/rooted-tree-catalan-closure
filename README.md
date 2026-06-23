@@ -24,9 +24,9 @@ Repository recovery and theorem completeness are separate questions:
 | Exact finite tree identity, `0 ≤ n ≤ 8` | Recomputed by three integer-only methods |
 | General Lean proof of `RootedChildFactorialCatalanIdentity n` | **Still open in this artifact** |
 | Static integrity, patch applicability, packaging, and release verification | Automated |
-| Source ZIP self-audit and archived Lean evidence | Verified after extraction |
+| Source ZIP self-audit and archived Lean evidence | Verified directly, after extraction, and after second-generation repackaging |
 | Workflow supply chain | Allowlisted actions pinned to full commit SHAs |
-| Full Git history and refs | Recoverable through a verified Git bundle |
+| Full Git history and refs | Recoverable through a Git bundle checked against its exact head inventory |
 
 The exact remaining proposition is:
 
@@ -87,6 +87,8 @@ The non-TeX CI gate is:
 ```sh
 make ci
 make package-determinism
+make package-repackaging
+make verify-source-zip
 make verify-release
 ```
 
@@ -117,6 +119,31 @@ depend on a particular zlib version. It includes the archived Lean build/oracle 
 extracted into a clean directory, and runs its own repository audit during
 `make verify-release`.
 
+### Direct, extracted, and second-generation verification
+
+The source ZIP is verified in three independent forms. Before extraction, verify its bytes
+and canonical archive metadata directly:
+
+```sh
+python scripts/verify_source_zip.py \
+  release/rooted-tree-catalan-closure-v1.6.0.zip \
+  --checksum release/rooted-tree-catalan-closure-v1.6.0.zip.sha256
+```
+
+This check treats ZIP metadata as authoritative and deliberately does not trust executable
+bits produced by a Windows extractor. It also rejects traversal, case collisions, unsafe
+portable names, duplicate JSON keys, non-finite JSON numbers, CRC failures, and implausible
+archive sizes. After extraction, verify the complete internal inventory with:
+
+```sh
+python scripts/check_source_manifest.py
+```
+
+The same extracted tree can run `make package-determinism`, `make package-repackaging`, and
+`make verify-release` without re-adding the generated manifest. Cross-surface release and
+theorem metadata can be checked with `python scripts/check_metadata_consistency.py`. See
+[docs/ENGINEERING_HARDENING.md](docs/ENGINEERING_HARDENING.md) for the regression record.
+
 Preserve and verify the complete commit graph and refs separately:
 
 ```sh
@@ -124,9 +151,9 @@ make history-bundle
 make verify-history
 ```
 
-`make recovery` builds and verifies both recovery layers. The Git bundle is checksummed
-and checked with `git bundle verify`; unlike the source ZIP, it is not claimed to be
-byte-identical across Git versions. See
+`make recovery` builds and verifies both recovery layers. The Git bundle is checksummed,
+checked with `git bundle verify`, and compared exactly with `git bundle list-heads`; unlike
+the source ZIP, it is not claimed to be byte-identical across Git versions. See
 [docs/DISASTER_RECOVERY.md](docs/DISASTER_RECOVERY.md).
 
 ## CI portability
@@ -172,6 +199,12 @@ The archived evidence records a successful 8,235-job build and exactly
 - `scripts/check_repository.py` — local integrity and claim-boundary audit.
 - `scripts/check_actions_pins.py` — semantic full-SHA workflow supply-chain audit.
 - `scripts/package_release.py` — deterministic package, checksum, SBOM, and metadata.
+- `scripts/source_inventory.py` — shared Git/no-Git source selection policy.
+- `scripts/release_integrity.py` — portable path, manifest, ZIP, and extraction invariants.
+- `scripts/check_source_manifest.py` — extracted-source tree verification.
+- `scripts/check_metadata_consistency.py` — citation/release/theorem metadata parity.
+- `scripts/strict_json.py` — duplicate-key and non-finite-number rejection.
+- `scripts/verify_source_zip.py` — standalone permission-independent ZIP verification.
 - `scripts/verify_release.py` — independent release/source parity verification.
 - `scripts/create_history_bundle.py` — complete Git history/ref recovery bundle.
 - `schema/project.schema.json` — machine-readable metadata contract.

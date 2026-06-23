@@ -7,7 +7,7 @@ BUILD_DIR ?= build
 BUILT_PDF := $(BUILD_DIR)/Rooted_tree_Catalan_closure.pdf
 LATEX_FLAGS ?= -interaction=nonstopmode -halt-on-error -file-line-error
 
-.PHONY: help static audit actions-check ci test finite-check finite-refresh paper paper-refresh paper-check tectonic package package-determinism verify-release history-bundle verify-history recovery verify release upstream-replay clean
+.PHONY: help static audit actions-check ci test finite-check finite-refresh paper paper-refresh paper-check tectonic package package-determinism package-repackaging verify-source-zip verify-release history-bundle verify-history recovery verify release upstream-replay clean
 
 help:
 	@printf '%s\n' \
@@ -22,6 +22,8 @@ help:
 	  'make paper-check         - rebuild and inspect the build PDF' \
 	  'make package             - deterministic stored ZIP, checksum, source manifest, and SPDX SBOM' \
 	  'make package-determinism - build the release twice and compare every output byte' \
+	  'make package-repackaging - reproduce release bytes from its extracted source ZIP' \
+	  'make verify-source-zip   - verify ZIP bytes/modes without trusting extracted permissions' \
 	  'make verify-release      - independently validate all release outputs' \
 	  'make history-bundle      - preserve complete Git history and refs in a verified bundle' \
 	  'make verify-history      - validate history bundle checksums, refs, and Git structure' \
@@ -72,6 +74,16 @@ package: static test finite-check
 package-determinism: static test finite-check
 	$(PYTHON) scripts/check_determinism.py
 
+package-repackaging: static test finite-check
+	$(PYTHON) scripts/check_repackaging.py
+
+verify-source-zip: package
+	@version=`$(PYTHON) -c 'import json; print(json.load(open("project.json", encoding="utf-8"))["version"])'`; \
+	$(PYTHON) scripts/verify_source_zip.py \
+	  "$(RELEASE_DIR)/rooted-tree-catalan-closure-v$$version.zip" \
+	  --checksum "$(RELEASE_DIR)/rooted-tree-catalan-closure-v$$version.zip.sha256" \
+	  --expected-version "$$version"
+
 verify-release: package
 	$(PYTHON) scripts/verify_release.py --release-dir $(RELEASE_DIR)
 
@@ -81,9 +93,9 @@ history-bundle: static
 verify-history: history-bundle
 	$(PYTHON) scripts/verify_history_bundle.py --release-dir $(HISTORY_DIR)
 
-recovery: package-determinism verify-release verify-history
+recovery: package-determinism package-repackaging verify-source-zip verify-release verify-history
 
-verify: static test finite-check package-determinism
+verify: static test finite-check package-determinism package-repackaging verify-source-zip
 
 release: verify paper-check package verify-release
 

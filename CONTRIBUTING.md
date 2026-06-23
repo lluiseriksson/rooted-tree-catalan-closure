@@ -10,6 +10,8 @@ For documentation, metadata, evidence, or tooling changes:
 ```sh
 make ci
 make package-determinism
+make package-repackaging
+make verify-source-zip
 make verify-release
 make history-bundle
 make verify-history
@@ -60,3 +62,37 @@ commits and tags.
 ## Publication-critical Make variables
 
 Keep `TEX := main.tex` and `TRACKED_PDF := Rooted_tree_Catalan_closure.pdf` as immediate assignments. Conditional assignment permits runner environment variables to select the wrong manuscript source.
+
+
+## Release and metadata hardening
+
+Run the metadata parity checker after changing any version, date, repository URL, citation,
+release note, upstream pin, theorem status, or formal-boundary field:
+
+```sh
+python scripts/check_metadata_consistency.py
+```
+
+When testing from an extracted source release, verify the generated inventory before any
+other operation and then prove that the tree can be packaged again:
+
+```sh
+python scripts/check_source_manifest.py
+make package-determinism
+make verify-release
+```
+
+Release ZIP changes must preserve canonical POSIX paths, cross-platform filename safety,
+case-insensitive uniqueness, normalized metadata, safe manual extraction, and exact manifest,
+SBOM, and working-tree parity. Add a regression test for every newly accepted or rejected
+archive form.
+
+
+## Permission-independent archive verification
+
+Do not infer source-archive validity from modes observed after extraction. Windows does not
+faithfully reproduce Unix executable bits. Validate the original ZIP with
+`scripts/verify_source_zip.py`; the normalized modes inside the ZIP are authoritative.
+Integrity-critical JSON must be loaded through `scripts/strict_json.py` so duplicate keys and
+non-finite values cannot be silently normalized. History changes must preserve exact parity
+between `bundle_heads` and `git bundle list-heads`.

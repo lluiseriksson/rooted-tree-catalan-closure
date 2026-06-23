@@ -6,34 +6,26 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import subprocess
 import uuid
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+from release_integrity import (
+    MAX_ARCHIVE_FILES,
+    MAX_ARCHIVE_FILE_BYTES,
+    MAX_ARCHIVE_TOTAL_BYTES,
+    format_source_manifest,
+)
+from strict_json import load as load_json
+from source_inventory import (
+    EXCLUDED_NAMES,
+    EXCLUDED_PARTS,
+    EXCLUDED_SUFFIXES,
+    repository_files as discover_repository_files,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
-EXCLUDED_PARTS = {
-    ".git",
-    "release",
-    "history-release",
-    "build",
-    ".work",
-    "__pycache__",
-    ".pytest_cache",
-    ".mypy_cache",
-    ".ruff_cache",
-    ".venv",
-}
-EXCLUDED_SUFFIXES = {".aux", ".fdb_latexmk", ".fls", ".out", ".synctex.gz", ".toc"}
-EXCLUDED_NAMES = {
-    "main.pdf",
-    "main.log",
-    ".coverage",
-    "replay-build.log",
-    "replay-oracle.log",
-    "replay-report.json",
-}
 ARCHIVED_EVIDENCE_LOGS = (
     "lean-patch/verification/catalan-build.log",
     "lean-patch/verification/oracle_check_catalan.log",
@@ -46,28 +38,7 @@ def sha256(data: bytes) -> str:
 
 def repository_files(output_dir: Path) -> list[Path]:
     """Return distributable repository files in canonical path order."""
-    try:
-        raw = subprocess.check_output(["git", "ls-files", "-co", "--exclude-standard", "-z"], cwd=ROOT, stderr=subprocess.DEVNULL)
-        candidates = [ROOT / item.decode("utf-8") for item in raw.split(b"\0") if item]
-    except (FileNotFoundError, subprocess.CalledProcessError):
-        candidates = [path for path in ROOT.rglob("*") if path.is_file()]
-    selected: list[Path] = []
-    for path in candidates:
-        if not path.is_file() or path.is_symlink():
-            continue
-        try:
-            path.resolve().relative_to(output_dir)
-        except ValueError:
-            pass
-        else:
-            continue
-        rel = path.relative_to(ROOT)
-        if any(part in EXCLUDED_PARTS for part in rel.parts):
-            continue
-        if path.name in EXCLUDED_NAMES or any(path.name.endswith(suffix) for suffix in EXCLUDED_SUFFIXES):
-            continue
-        selected.append(path)
-    return sorted(selected, key=lambda path: path.relative_to(ROOT).as_posix())
+    return discover_repository_files(ROOT, output_dir)
 
 
 def zip_info(name: str, timestamp: tuple[int, int, int, int, int, int], executable: bool = False) -> zipfile.ZipInfo:
@@ -90,7 +61,9 @@ def portable_executable_mode(path: str) -> bool:
 
 
 def spdx_id(path: str) -> str:
-    return "SPDXRef-File-" + "".join(char if char.isalnum() or char in ".-" else "-" for char in path)
+    """Return a readable, collision-resistant SPDX identifier for a source path."""
+    slug = "".join(char if char.isalnum() or char in ".-" else "-" for char in path)
+    return f"SPDXRef-File-{slug}-{sha256(path.encode('utf-8'))[:12]}"
 
 
 def file_license(path: str) -> str:
@@ -111,7 +84,9 @@ def main() -> int:
     parser.add_argument("--output-dir", default="release")
     args = parser.parse_args()
 
-    project = json.loads((ROOT / "project.json").read_text(encoding="utf-8"))
+    project = load_json(ROOT / "project.json")
+    if not isinstance(project, dict):
+        raise SystemExit("project.json must contain a JSON object")
     version = project["version"]
     release_date = datetime.fromisoformat(project["release_date"]).replace(tzinfo=timezone.utc)
     timestamp = (release_date.year, release_date.month, release_date.day, 0, 0, 0)
@@ -144,7 +119,9 @@ def main() -> int:
                 "license": file_license(rel),
             }
         )
-    manifest = "".join(f"{record['sha256']}  {record['path']}\n" for record in records).encode("utf-8")
+    manifest = format_source_manifest(
+        [(str(record["path"]), str(record["sha256"])) for record in records]
+    )
     source_tree_sha256 = sha256(manifest)
 
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_STORED, allowZip64=False) as archive:
@@ -221,7 +198,7 @@ def main() -> int:
     finite_evidence = ROOT / "evidence" / "finite-catalan-checks.json"
     theorem_manifest = ROOT / "archive" / "theorem-manifest.json"
     release_meta = {
-        "schema_version": 3,
+        "schema_version": 4,
         "name": project["name"],
         "version": version,
         "release_date": project["release_date"],
@@ -232,8 +209,17 @@ def main() -> int:
         "source_manifest": "SOURCE-MANIFEST.sha256",
         "source_archive_self_audit": {
             "command": "python scripts/check_repository.py",
+            "manifest_command": "python scripts/check_source_manifest.py",
+            "standalone_zip_command": f"python scripts/verify_source_zip.py {zip_path.name} --checksum {checksum_path.name}",
             "required": True,
+            "repackaging_verified": True,
+            "host_extracted_modes_authoritative": False,
             "archived_evidence_logs": list(ARCHIVED_EVIDENCE_LOGS),
+            "resource_limits": {
+                "max_files": MAX_ARCHIVE_FILES,
+                "max_file_bytes": MAX_ARCHIVE_FILE_BYTES,
+                "max_total_bytes": MAX_ARCHIVE_TOTAL_BYTES,
+            },
         },
         "archive_method": "ZIP_STORED",
         "normalized_timestamp": release_date.strftime("%Y-%m-%dT00:00:00Z"),
@@ -253,6 +239,8 @@ def main() -> int:
         "history_backup": {
             "status": "separate_checksum_and_git_bundle_verify_artifact",
             "outputs": project["history_backup_outputs"],
+            "inventory_schema": 2,
+            "exact_bundle_heads_verified": True,
             "byte_reproducibility_claim": False,
         },
     }

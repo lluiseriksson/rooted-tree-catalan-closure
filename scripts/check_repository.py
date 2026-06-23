@@ -14,6 +14,9 @@ from pathlib import Path
 from typing import Iterable
 
 from check_actions_pins import audit_workflows, load_policy
+from check_metadata_consistency import check_metadata_consistency
+from check_source_manifest import audit_source_manifest
+from strict_json import StrictJSONError, loads as strict_json_loads
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_FILES = (
@@ -25,6 +28,7 @@ REQUIRED_FILES = (
     "project.json",
     "LEAN_PATCH_MANIFEST.md",
     "CHANGELOG.md",
+    "RELEASE_NOTES.md",
     "CONTRIBUTING.md",
     "SECURITY.md",
     "LICENSE",
@@ -45,6 +49,7 @@ REQUIRED_FILES = (
     "docs/DISASTER_RECOVERY.md",
     "docs/CI_PORTABILITY.md",
     "docs/SUPPLY_CHAIN.md",
+    "docs/ENGINEERING_HARDENING.md",
     "schema/project.schema.json",
     "lean-patch/CATALAN_PATCH_STATUS.md",
     "lean-patch/catalan-conditional-adapter.patch",
@@ -60,6 +65,13 @@ REQUIRED_FILES = (
     "scripts/check_actions_pins.py",
     "scripts/check_pdf.py",
     "scripts/check_repository.py",
+    "scripts/check_metadata_consistency.py",
+    "scripts/check_repackaging.py",
+    "scripts/check_source_manifest.py",
+    "scripts/strict_json.py",
+    "scripts/verify_source_zip.py",
+    "scripts/release_integrity.py",
+    "scripts/source_inventory.py",
     "scripts/package_release.py",
     "scripts/verify_release.py",
     "scripts/check_determinism.py",
@@ -71,6 +83,10 @@ REQUIRED_FILES = (
     "tests/test_finite_catalan.py",
     "tests/test_replay_logs.py",
     "tests/test_history_bundle.py",
+    "tests/test_metadata_consistency.py",
+    "tests/test_release_integrity.py",
+    "tests/test_strict_json.py",
+    "tests/test_verify_source_zip.py",
     ".github/workflows/artifact-ci.yml",
     ".github/workflows/dependency-review.yml",
     ".github/workflows/full-lean-replay.yml",
@@ -90,6 +106,18 @@ EXPECTED_VERIFIED_DECLARATIONS = {
     "YangMills.KP.rootedChildCount_factorialTreeSum_normalized_le_catalan_of_identity",
     "YangMills.RG.catalanClosure_fixedPoint",
     "YangMills.RG.appendixFHoleHsharpWeightedTreeMarkedRootSum_le_catalan_of_expWeight",
+}
+REQUIRED_CRITICAL_TOOLING = {
+    "scripts/check_metadata_consistency.py",
+    "scripts/check_repackaging.py",
+    "scripts/check_repository.py",
+    "scripts/check_source_manifest.py",
+    "scripts/strict_json.py",
+    "scripts/verify_source_zip.py",
+    "scripts/package_release.py",
+    "scripts/release_integrity.py",
+    "scripts/source_inventory.py",
+    "scripts/verify_release.py",
 }
 BINARY_SUFFIXES = {".pdf", ".png", ".jpg", ".jpeg", ".gif", ".zip"}
 
@@ -228,9 +256,9 @@ def check_json_files(audit: Audit, files: Iterable[str]) -> None:
         if not rel.endswith(".json"):
             continue
         try:
-            json.loads(read_text(rel))
-        except json.JSONDecodeError as exc:
-            audit.errors.append(f"invalid JSON in {rel}: {exc}")
+            strict_json_loads(read_text(rel), source=rel)
+        except StrictJSONError as exc:
+            audit.errors.append(str(exc))
 
 
 def check_local_markdown_links(audit: Audit, files: Iterable[str]) -> None:
@@ -279,7 +307,15 @@ def main() -> int:
         return 1
 
     files = repository_files()
-    project = json.loads(read_text("project.json"))
+    for error in check_metadata_consistency(ROOT):
+        audit.errors.append(f"metadata consistency: {error}")
+    manifest_errors = audit_source_manifest(ROOT, required=False)
+    for error in manifest_errors:
+        audit.errors.append(f"source manifest: {error}")
+    if (ROOT / "SOURCE-MANIFEST.sha256").is_file() and not manifest_errors:
+        audit.note("extracted source manifest verified against the complete distributable tree")
+
+    project = strict_json_loads(read_text("project.json"), source="project.json")
     audit.require(project.get("schema_version") == 4, "unsupported project.json schema")
     audit.require(project.get("name") == "rooted-tree-catalan-closure", "wrong project name")
     audit.require(project.get("default_branch") == "master", "default branch record is not master")
@@ -288,7 +324,7 @@ def main() -> int:
         "formal status drift",
     )
     audit.require(bool(re.fullmatch(r"\d+\.\d+\.\d+", project.get("version", ""))), "bad version")
-    schema = json.loads(read_text("schema/project.schema.json"))
+    schema = strict_json_loads(read_text("schema/project.schema.json"), source="schema/project.schema.json")
     audit.require(schema.get("$schema") == "https://json-schema.org/draft/2020-12/schema", "project schema draft drift")
     audit.require("history_backup_outputs" in schema.get("required", []), "project schema omits history outputs")
     audit.require("actions_policy" in schema.get("required", []), "project schema omits actions policy")
@@ -306,11 +342,27 @@ def main() -> int:
         "verified declaration set drift",
     )
     audit.require(set(project.get("expected_axioms", [])) == EXPECTED_AXIOMS, "project axiom set drift")
+    audit.require(
+        REQUIRED_CRITICAL_TOOLING <= set(project.get("critical_git_blobs", {})),
+        "critical tooling inventory omits release-integrity or metadata validators",
+    )
     audit.require(len(project.get("release_outputs", [])) >= 4, "release output inventory is incomplete")
     audit.require(len(project.get("history_backup_outputs", [])) == 3, "history output inventory is incomplete")
     recovery_policy = project.get("recovery_policy", {})
     audit.require(recovery_policy.get("off_site_storage_recommended") is True, "off-site recovery policy drift")
     audit.require(recovery_policy.get("history_bundle_byte_reproducibility_claim") is False, "history bundle overclaims byte reproducibility")
+    release_policy = project.get("release_policy", {})
+    for key in (
+        "portable_archive_paths",
+        "source_archive_repackaging",
+        "source_manifest_self_check",
+        "standalone_source_zip_verifier",
+        "strict_json_metadata",
+        "history_bundle_exact_head_inventory",
+        "archive_resource_limits",
+    ):
+        audit.require(release_policy.get(key) is True, f"release policy does not enable {key}")
+    audit.require(project.get("history_inventory_schema") == 2, "history inventory schema drift")
     actions_policy_rel = project.get("actions_policy")
     audit.require(actions_policy_rel == "archive/github-actions-policy.json", "actions-policy path drift")
     boundary = project.get("claim_boundary", {})
@@ -417,7 +469,7 @@ def main() -> int:
         audit.require(names == EXPECTED_AXIOMS, f"oracle report {index} has unexpected axioms: {names}")
     audit.require("sorryAx" not in oracle_log, "oracle log contains sorryAx")
 
-    evidence = json.loads(read_text("evidence/finite-catalan-checks.json"))
+    evidence = strict_json_loads(read_text("evidence/finite-catalan-checks.json"), source="evidence/finite-catalan-checks.json")
     audit.require(evidence.get("schema_version") == 1, "finite evidence schema drift")
     audit.require(
         evidence.get("status") == "finite_exact_computational_evidence_not_formal_proof",
@@ -443,7 +495,7 @@ def main() -> int:
         audit.require(results[-1].get("n") == 8, "finite evidence final order drift")
         audit.require(results[-1].get("expected_weighted_sum") == 57_657_600, "finite evidence n=8 value drift")
 
-    theorem_manifest = json.loads(read_text("archive/theorem-manifest.json"))
+    theorem_manifest = strict_json_loads(read_text("archive/theorem-manifest.json"), source="archive/theorem-manifest.json")
     audit.require(theorem_manifest.get("schema_version") == 1, "theorem manifest schema drift")
     audit.require(theorem_manifest.get("artifact_version") == project["version"], "theorem manifest version drift")
     declarations = theorem_manifest.get("declarations", [])
@@ -490,8 +542,8 @@ def main() -> int:
     date = project["release_date"]
     audit.require(f"version: {version}" in read_text("CITATION.cff"), "CITATION.cff version drift")
     audit.require(f"date-released: {date}" in read_text("CITATION.cff"), "CITATION.cff date drift")
-    audit.require(json.loads(read_text("codemeta.json"))["version"] == version, "CodeMeta version drift")
-    audit.require(json.loads(read_text(".zenodo.json"))["version"] == version, "Zenodo version drift")
+    audit.require(strict_json_loads(read_text("codemeta.json"), source="codemeta.json")["version"] == version, "CodeMeta version drift")
+    audit.require(strict_json_loads(read_text(".zenodo.json"), source=".zenodo.json")["version"] == version, "Zenodo version drift")
     audit.require(f"## {version} - {date}" in read_text("CHANGELOG.md"), "changelog version/date missing")
 
     makefile = read_text("Makefile")
@@ -509,6 +561,8 @@ def main() -> int:
         "finite-check:",
         "paper-refresh:",
         "package-determinism:",
+        "package-repackaging:",
+        "verify-source-zip:",
         "verify-release:",
         "history-bundle:",
         "verify-history:",
@@ -518,8 +572,29 @@ def main() -> int:
     package_source = read_text("scripts/package_release.py")
     audit.require("ZIP_STORED" in package_source, "release ZIP is not cross-runtime stored")
     audit.require("ARCHIVED_EVIDENCE_LOGS" in package_source, "source package does not preserve archived Lean evidence logs")
+    inventory_source = read_text("scripts/source_inventory.py")
+    audit.require(
+        '"SOURCE-MANIFEST.sha256"' in inventory_source,
+        "source inventory does not exclude its generated manifest during repackaging",
+    )
+    integrity_source = read_text("scripts/release_integrity.py")
+    audit.require(
+        "validate_portable_relative_path" in integrity_source and "safe_extract_members" in integrity_source,
+        "release verifier lacks portable-path or safe-extraction hardening",
+    )
     verifier_source = read_text("scripts/verify_release.py")
     audit.require("run_extracted_self_audit" in verifier_source, "release verifier does not audit the extracted source archive")
+    standalone_source = read_text("scripts/verify_source_zip.py")
+    audit.require(
+        "host permission" in standalone_source.lower()
+        and "validate_archive_resource_limits" in standalone_source,
+        "standalone source-ZIP verifier lacks permission-independent or resource-limit checks",
+    )
+    history_verifier_source = read_text("scripts/verify_history_bundle.py")
+    audit.require(
+        "list-heads" in history_verifier_source and "bundle_heads" in history_verifier_source,
+        "history verifier does not compare the exact Git bundle head inventory",
+    )
 
     try:
         action_policy = load_policy(ROOT / actions_policy_rel)
@@ -527,7 +602,7 @@ def main() -> int:
         for error in action_errors:
             audit.errors.append(f"GitHub Actions policy: {error}")
         audit.require(sum(action_counts.values()) >= 10, "unexpectedly small GitHub Actions reference inventory")
-    except (OSError, ValueError, json.JSONDecodeError) as exc:
+    except (OSError, ValueError, StrictJSONError) as exc:
         audit.errors.append(f"invalid GitHub Actions policy: {exc}")
 
     ci = read_text(".github/workflows/artifact-ci.yml")
@@ -541,6 +616,8 @@ def main() -> int:
     audit.require(
         ("make ci" in ci or "make finite-check" in ci)
         and "make package-determinism" in ci
+        and "make package-repackaging" in ci
+        and "make verify-source-zip" in ci
         and "make verify-release" in ci,
         "CI does not enforce finite evidence and deterministic verified releases",
     )
@@ -590,7 +667,7 @@ def main() -> int:
         return 1
     print(
         "repository audit passed: provenance, critical blobs, conditional Lean boundary, "
-        "finite evidence, theorem manifest, source/history recovery, workflows, PDF, tooling, links, and metadata are consistent"
+        "finite evidence, theorem manifest, source/history recovery, standalone ZIP and strict JSON safety, workflows, PDF, tooling, links, and metadata are consistent"
     )
     return 0
 

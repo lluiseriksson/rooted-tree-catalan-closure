@@ -11,6 +11,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from strict_json import StrictJSONError, load as load_json
+
 ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = ROOT / "archive" / "github-actions-policy.json"
 WORKFLOW_DIR = ROOT / ".github" / "workflows"
@@ -21,7 +23,9 @@ FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
 def load_policy(path: Path = POLICY_PATH) -> dict[str, Any]:
-    data = json.loads(path.read_text(encoding="utf-8"))
+    data = load_json(path)
+    if not isinstance(data, dict):
+        raise ValueError(f"actions policy must be a JSON object in {path}")
     if data.get("schema_version") != 1:
         raise ValueError(f"unsupported actions policy schema in {path}")
     actions = data.get("actions")
@@ -107,7 +111,7 @@ def main() -> int:
     try:
         policy = load_policy(root / "archive" / "github-actions-policy.json")
         errors, counts = audit_workflows(root, policy)
-    except (OSError, ValueError, json.JSONDecodeError) as exc:
+    except (OSError, ValueError, StrictJSONError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 

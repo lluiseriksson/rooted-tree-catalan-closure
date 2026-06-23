@@ -69,6 +69,10 @@
       "type": "array",
       "uniqueItems": true
     },
+    "history_inventory_schema": {
+      "const": 2,
+      "type": "integer"
+    },
     "name": {
       "const": "rooted-tree-catalan-closure"
     },
@@ -106,22 +110,54 @@
         "archive_method": {
           "const": "ZIP_STORED"
         },
+        "archive_resource_limits": {
+          "const": true
+        },
         "cross_runtime_byte_determinism": {
           "const": true
         },
         "github_provenance_attestations": {
           "const": true
         },
+        "history_bundle_exact_head_inventory": {
+          "const": true
+        },
+        "host_extracted_modes_authoritative": {
+          "const": false
+        },
+        "portable_archive_paths": {
+          "const": true
+        },
+        "source_archive_repackaging": {
+          "const": true
+        },
         "source_archive_self_audit": {
+          "const": true
+        },
+        "source_manifest_self_check": {
+          "const": true
+        },
+        "standalone_source_zip_verifier": {
+          "const": true
+        },
+        "strict_json_metadata": {
           "const": true
         }
       },
       "required": [
         "archive_method",
+        "archive_resource_limits",
         "cross_runtime_byte_determinism",
         "github_provenance_attestations",
+        "history_bundle_exact_head_inventory",
+        "host_extracted_modes_authoritative",
         "normalized_timestamp",
-        "source_archive_self_audit"
+        "portable_archive_paths",
+        "source_archive_repackaging",
+        "source_archive_self_audit",
+        "source_manifest_self_check",
+        "standalone_source_zip_verifier",
+        "strict_json_metadata"
       ],
       "type": "object"
     },
@@ -184,27 +220,28 @@
     }
   },
   "required": [
-    "schema_version",
-    "name",
-    "version",
-    "release_date",
-    "status",
-    "default_branch",
-    "repository",
-    "upstream",
-    "critical_git_blobs",
-    "expected_axioms",
-    "verified_declarations",
-    "unresolved_obligation",
-    "finite_evidence",
-    "theorem_manifest",
-    "release_outputs",
-    "history_backup_outputs",
-    "claim_boundary",
-    "recovery_policy",
-    "tooling_python_versions",
     "actions_policy",
-    "release_policy"
+    "claim_boundary",
+    "critical_git_blobs",
+    "default_branch",
+    "expected_axioms",
+    "finite_evidence",
+    "history_backup_outputs",
+    "history_inventory_schema",
+    "name",
+    "recovery_policy",
+    "release_date",
+    "release_outputs",
+    "release_policy",
+    "repository",
+    "schema_version",
+    "status",
+    "theorem_manifest",
+    "tooling_python_versions",
+    "unresolved_obligation",
+    "upstream",
+    "verified_declarations",
+    "version"
   ],
   "title": "Rooted-tree Catalan closure project metadata",
   "type": "object"

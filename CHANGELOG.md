@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.6.0 - 2026-06-23
+
+- Added a standalone source-ZIP verifier that validates archive bytes, canonical modes,
+  timestamps, paths, CRCs, resource limits, the internal manifest, and the optional
+  external checksum without trusting permissions produced by the host extractor.
+- Made safe extraction explicitly permission-independent on Windows while retaining the
+  normalized executable policy in ZIP metadata.
+- Added strict JSON decoding for integrity-critical metadata, rejecting duplicate keys and
+  non-finite numbers that the default Python decoder would otherwise accept silently.
+- Upgraded history inventories to schema 2 and now compare the recorded inventory exactly
+  with `git bundle list-heads`, including `HEAD` and the detached-head recovery ref.
+- Added archive file-count/size ceilings, extended portable filename checks, release metadata
+  schema 4, CI coverage, documentation, and regression tests for all new invariants.
+
+## 1.5.1 - 2026-06-23
+
+- Fixed second-generation source packaging: an extracted release no longer re-adds
+  `SOURCE-MANIFEST.sha256` and create a duplicate ZIP entry.
+- Centralized source inventory filters so Git checkouts and extracted archives select the
+  same distributable files.
+- Added strict portable-path, case-collision, ZIP metadata, SPDX inventory, and manifest
+  validation with safe manual extraction instead of `extractall`.
+- Added an autonomous extracted-source manifest verifier and made the repository self-audit
+  run it whenever the generated manifest is present.
+- Added cross-surface metadata checks for project, CFF, BibTeX, CodeMeta, Zenodo, changelog,
+  release notes, theorem status, claim boundaries, and upstream pins.
+- Added regression tests for archive traversal, Windows-reserved paths, malformed manifests,
+  duplicate SPDX paths, extracted-source checksum drift, and metadata drift.
+
 ## 1.5.0 - 2026-06-23
 
 - Replaced brittle whole-workflow blob locks with semantic GitHub Actions policy checks.

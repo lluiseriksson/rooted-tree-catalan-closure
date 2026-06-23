@@ -10,8 +10,7 @@ The recovered repository history is append-only:
 - `e50d83f5f2ebd2cce8d470f39dbeba5fa20f4ff6` — CI fix that hard-pins `main.tex` in the Makefile.
 - `27c48960e8ae1b1ebfaafee4c210c26a1f2883e4` — released v1.4.1 finite-evidence and replay hardening.
 
-The v1.5.0 improvement bundle applies on top of released commit `27c48960...` without rewriting prior
-history. The recovered Lean adapter remains tied to upstream base
+The v1.5.0 release and the subsequent v1.5.1/v1.6.0 improvement layers apply on top of the recovered history without rewriting prior commits. The recovered Lean adapter remains tied to upstream base
 `1d044a353ac2b69ddca732dd851fb0ab4a94d7af` and mailbox patch commit
 `d668c333db302f9f399374e3c824805a1c4d71da`.
 

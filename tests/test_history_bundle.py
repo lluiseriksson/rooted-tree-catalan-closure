@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -66,16 +67,37 @@ class HistoryBundleTests(unittest.TestCase):
                 / "rooted-tree-catalan-closure-v1.4.1.history.json"
             )
             inventory = json.loads(inventory_path.read_text(encoding="utf-8"))
-            commits = {entry["commit"] for entry in inventory["refs"]}
-            refs = {entry["ref"] for entry in inventory["refs"]}
+            heads = {entry["ref"]: entry["oid"] for entry in inventory["bundle_heads"]}
+            self.assertEqual(inventory["schema_version"], 2)
             self.assertEqual(inventory["head_commit"], head)
-            self.assertIn(head, commits)
-            self.assertIn("refs/tags/v0-test", refs)
+            self.assertEqual(heads["HEAD"], head)
+            self.assertEqual(heads["refs/rtc-recovery/HEAD"], head)
+            self.assertIn("refs/tags/v0-test", heads)
             bundle = repo / "history-release" / inventory["bundle"]
             clone = Path(temporary) / "clone"
             subprocess.run(["git", "clone", str(bundle), str(clone)], check=True, capture_output=True)
             subprocess.run(["git", "cat-file", "-e", f"{first}^{{commit}}"], cwd=clone, check=True)
             subprocess.run(["git", "cat-file", "-e", f"{head}^{{commit}}"], cwd=clone, check=True)
+
+            # Recompute the sidecar after deleting one recorded head. The verifier must
+            # still reject the inventory because it no longer matches list-heads.
+            inventory["bundle_heads"] = [
+                entry for entry in inventory["bundle_heads"] if entry["ref"] != "refs/tags/v0-test"
+            ]
+            inventory_path.write_text(json.dumps(inventory, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            sums_path = repo / "history-release" / "rooted-tree-catalan-closure-v1.4.1.history.SHA256SUMS"
+            bundle_digest = hashlib.sha256(bundle.read_bytes()).hexdigest()
+            inventory_digest = hashlib.sha256(inventory_path.read_bytes()).hexdigest()
+            records = sorted([(bundle.name, bundle_digest), (inventory_path.name, inventory_digest)])
+            sums_path.write_text("".join(f"{digest}  {name}\n" for name, digest in records), encoding="utf-8")
+            failed = subprocess.run(
+                [sys.executable, str(VERIFY), "--repository", str(repo)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertNotEqual(failed.returncode, 0)
+            self.assertIn("list-heads", failed.stderr)
 
 
 if __name__ == "__main__":

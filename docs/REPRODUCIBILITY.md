@@ -10,8 +10,9 @@ make static
 
 This verifies pins, critical Git blobs, active Lean placeholder policy, exact oracle
 axiom sets, captured build evidence, theorem manifest, finite-evidence metadata, claim
-boundary, metadata alignment, semantically pinned workflow actions, local Markdown
-links, text normalization, and PDF structure.
+boundary, cross-surface metadata alignment, optional extracted-source manifest parity,
+semantically pinned workflow actions, local Markdown links, text normalization, and PDF
+structure.
 
 The workflow-specific policy can also be run directly:
 
@@ -53,6 +54,8 @@ its provenance record.
 
 ```sh
 make package-determinism
+make package-repackaging
+make verify-source-zip
 make verify-release
 ```
 
@@ -64,6 +67,19 @@ working source tree by `scripts/verify_release.py`. The verifier then extracts t
 and executes `python scripts/check_repository.py` inside the extracted copy. This catches
 omissions that source-parity alone cannot detect, including missing archived Lean
 verification logs.
+
+The verifier additionally requires portable canonical paths, rejects case-insensitive and
+Windows filename collisions, validates normalized ZIP metadata and the SPDX path/checksum
+inventory, and performs manual regular-file extraction. An extracted release can be checked
+and repackaged independently:
+
+```sh
+python scripts/check_source_manifest.py
+make package-determinism
+```
+
+This second-generation packaging check prevents a generated manifest or recovery byproduct
+from becoming a duplicate or accidental source entry.
 
 ## Full Lean replay
 
@@ -91,3 +107,15 @@ the bundle. See [DISASTER_RECOVERY.md](DISASTER_RECOVERY.md).
 ## Tooling runtime matrix
 
 The standard-library tooling is tested on Python 3.11, 3.12, and 3.13. The reference release job uses Python 3.12. Publication-critical Makefile paths use immediate assignment; see `docs/CI_PORTABILITY.md`.
+
+
+## Standalone archive verification
+
+Run `scripts/verify_source_zip.py` against the original ZIP and its checksum before
+extraction. The verifier reads normalized modes from ZIP metadata, so Windows permission
+translation cannot create a false failure. Archive file count and expanded size are bounded,
+and project metadata is parsed with duplicate-key and non-finite-number rejection.
+
+History inventories use schema 2 and must equal `git bundle list-heads` exactly. The Git
+bundle remains structurally verified and checksummed but is not claimed byte-reproducible
+across Git versions.
